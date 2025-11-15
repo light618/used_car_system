@@ -1,0 +1,30 @@
+# 依赖
+vendor/
+node_modules/
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 日志
+*.log
+logs/
+
+# 上传文件（保留目录结构）
+public/uploads/*
+!public/uploads/.gitkeep
+!public/uploads/cars/.gitkeep
+!public/uploads/greenbook/.gitkeep
+
+# 系统文件
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# 临时文件
+*.tmp
+*.swp
+*.swo
+*~

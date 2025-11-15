@@ -1,0 +1,35 @@
+{
+    "name": "used-car-system/backend",
+    "description": "二手车管理系统 - PHP后端",
+    "type": "project",
+    "keywords": ["二手车", "管理系统", "PHP"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "主公",
+            "email": "your-email@example.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-json": "*",
+        "ext-pdo": "*",
+        "ext-mbstring": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "api/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
+
