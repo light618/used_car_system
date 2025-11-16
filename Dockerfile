@@ -27,6 +27,9 @@ COPY . .
 RUN mkdir -p public/uploads/cars public/uploads/greenbook && \
     chmod -R 777 public/uploads
 
+# 启动脚本
+RUN chmod +x /app/start.sh
+
 # 启动命令
-CMD php -S 0.0.0.0:$PORT -t public public/router.php
+CMD ["/app/start.sh"]
 
