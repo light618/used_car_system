@@ -34,8 +34,64 @@ class Database
                     \PDO::ATTR_EMULATE_PREPARES => false,
                 ]
             );
+
+            // 首次运行自动初始化数据库表结构
+            $this->ensureInitialized();
         } catch (\PDOException $e) {
             die('数据库连接失败: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * 确保数据库已初始化（若缺少核心表则执行 schema.sql）
+     */
+    private function ensureInitialized()
+    {
+        try {
+            $stmt = $this->connection->query("SHOW TABLES LIKE 'uc_users'");
+            $exists = $stmt->fetch();
+            if ($exists) {
+                return; // 已初始化
+            }
+        } catch (\Throwable $e) {
+            // 忽略检测错误，尝试初始化
+        }
+        
+        $schemaFile = __DIR__ . '/../../database/schema.sql';
+        if (!file_exists($schemaFile)) {
+            return; // 无法初始化（缺少文件），静默跳过
+        }
+        
+        $sql = file_get_contents($schemaFile);
+        if ($sql === false || trim($sql) === '') {
+            return;
+        }
+        
+        // 去除注释并按分号拆分执行
+        $lines = preg_split('/\r?\n/', $sql);
+        $clean = [];
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || strpos($line, '--') === 0 || strpos($line, '#') === 0) {
+                continue;
+            }
+            $clean[] = $line;
+        }
+        $sqlClean = implode("\n", $clean);
+        $statements = array_filter(array_map('trim', preg_split('/;\s*\n|;\s*$/m', $sqlClean)));
+        
+        $this->connection->beginTransaction();
+        try {
+            foreach ($statements as $statement) {
+                if ($statement !== '') {
+                    $this->connection->exec($statement);
+                }
+            }
+            $this->connection->commit();
+        } catch (\Throwable $e) {
+            $this->connection->rollBack();
+            // 初始化失败不应让服务崩溃，记录到错误日志
+            error_log('[DB Init] 初始化失败: ' . $e->getMessage());
         }
     }
     
