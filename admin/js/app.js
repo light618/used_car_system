@@ -254,7 +254,7 @@ const App = {
      */
     async loadPage(pageName) {
         const contentArea = document.getElementById('content-area');
-        contentArea.innerHTML = '<div class="loading">加载中...</div>';
+        contentArea.innerHTML = this.renderSkeleton(pageName);
         
         // 更新菜单选中状态
         const navMenu = document.getElementById('nav-menu');
@@ -287,6 +287,68 @@ const App = {
         } catch (error) {
             console.error('Load page error:', error);
             contentArea.innerHTML = `<div class="empty-state">加载失败: ${error.message}</div>`;
+        }
+    },
+    
+    /**
+     * 渲染骨架屏（根据页面类型显示不同骨架）
+     */
+    renderSkeleton(pageName) {
+        const tableSkeleton = `
+            <div class="card">
+                <div class="card-header">
+                    <div class="skeleton skeleton-title"></div>
+                    <div class="skeleton skeleton-btn"></div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                ${Array.from({ length: 6 }).map(() => '<th><div class="skeleton skeleton-th"></div></th>').join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Array.from({ length: 6 }).map(() => `
+                                <tr>
+                                    ${Array.from({ length: 6 }).map(() => '<td><div class="skeleton skeleton-td"></div></td>').join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+        
+        const formSkeleton = `
+            <div class="card">
+                <div class="card-header">
+                    <div class="skeleton skeleton-title"></div>
+                </div>
+                <div class="form-grid">
+                    ${Array.from({ length: 6 }).map(() => `
+                        <div class="form-group">
+                            <div class="skeleton skeleton-label"></div>
+                            <div class="skeleton skeleton-input"></div>
+                        </div>
+                    `).join('')}
+                    <div class="form-group full-width">
+                        <div class="skeleton skeleton-label"></div>
+                        <div class="skeleton skeleton-textarea"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="skeleton skeleton-btn"></div>
+                    <div class="skeleton skeleton-btn"></div>
+                </div>
+            </div>`;
+        
+        switch (pageName) {
+            case 'car-create':
+                return formSkeleton;
+            case 'store-list':
+            case 'car-list':
+            case 'car-audit':
+            default:
+                return tableSkeleton;
         }
     },
     
