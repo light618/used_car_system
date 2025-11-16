@@ -2,7 +2,7 @@
 builder = "DOCKERFILE"
 
 [deploy]
-startCommand = "php -S 0.0.0.0:$PORT -t public public/router.php"
+startCommand = "/app/start.sh"
 healthcheckPath = "/healthz"
 healthcheckTimeout = 100
 
