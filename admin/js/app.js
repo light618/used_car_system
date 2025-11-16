@@ -195,6 +195,8 @@ const App = {
         
         if (this.currentRole === 'headquarters_admin') {
             menuItems.push(
+                { icon: 'fa-plus-circle', text: '新增车源', page: 'car-create' },
+                { icon: 'fa-clipboard-check', text: '待审核车源', page: 'car-audit' },
                 { icon: 'fa-store', text: '门店管理', page: 'store-list' },
                 { icon: 'fa-car', text: '车源管理', page: 'car-list' }
             );
@@ -391,7 +393,7 @@ const App = {
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">车源列表</h3>
-                    ${this.currentRole === 'store_input' ? `
+                    ${this.currentRole === 'store_input' || this.currentRole === 'headquarters_admin' ? `
                         <button class="btn btn-primary" onclick="App.loadPage('car-create')">
                             <i class="fas fa-plus"></i> 新增车源
                         </button>

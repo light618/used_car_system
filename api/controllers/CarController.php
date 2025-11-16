@@ -127,12 +127,13 @@ class CarController
      */
     public function create()
     {
-        $payload = Auth::checkRole(['store_input']);
+        $payload = Auth::checkRole(['store_input', 'headquarters_admin']);
         
         $postData = Request::getData();
         
         $data = [
-            'store_id' => $payload['store_id'],
+            // 总部录入的车源归属总部（store_id=0），门店录入归属各自门店
+            'store_id' => $payload['role'] === 'headquarters_admin' ? 0 : $payload['store_id'],
             'input_user_id' => $payload['user_id'],
             'brand' => trim($postData['brand'] ?? ''),
             'series' => trim($postData['series'] ?? ''),
@@ -278,7 +279,7 @@ class CarController
      */
     public function audit()
     {
-        $payload = Auth::checkRole(['store_admin']);
+        $payload = Auth::checkRole(['store_admin', 'headquarters_admin']);
         
         $postData = Request::getData();
         $id = isset($postData['id']) ? intval($postData['id']) : 0;
@@ -300,9 +301,15 @@ class CarController
             Response::error('车源不存在');
         }
         
-        // 只能审核本店车源
-        if ($car['store_id'] != $payload['store_id']) {
-            Response::error('只能审核本店车源');
+        // 权限：门店管理员只能审核本店车源；总部只能审核总部车源（store_id=0）
+        if ($payload['role'] === 'store_admin') {
+            if ($car['store_id'] != $payload['store_id']) {
+                Response::error('只能审核本店车源');
+            }
+        } else if ($payload['role'] === 'headquarters_admin') {
+            if (intval($car['store_id']) !== 0) {
+                Response::error('总部只能审核总部车源');
+            }
         }
         
         if ($car['audit_status'] != '待审核') {
