@@ -14,6 +14,14 @@ class CaptchaController
      */
     public function generate()
     {
+        // 若GD未启用，返回错误提示（便于定位）
+        if (!function_exists('imagecreatetruecolor')) {
+            http_response_code(500);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'GD extension not available';
+            exit;
+        }
+        
         // 创建验证码图片
         $width = 100;
         $height = 40;
@@ -36,6 +44,8 @@ class CaptchaController
         
         // 保存验证码到session
         if (session_status() === PHP_SESSION_NONE) {
+            // 兜底设置，确保容器内有可写session目录
+            @ini_set('session.save_path', '/tmp');
             session_start();
         }
         $_SESSION['captcha_code'] = strtolower($code);
@@ -68,6 +78,7 @@ class CaptchaController
     public static function verify($inputCode)
     {
         if (session_status() === PHP_SESSION_NONE) {
+            @ini_set('session.save_path', '/tmp');
             session_start();
         }
         
