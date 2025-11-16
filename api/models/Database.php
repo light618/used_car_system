@@ -43,55 +43,96 @@ class Database
     }
     
     /**
-     * 确保数据库已初始化（若缺少核心表则执行 schema.sql）
+     * 确保数据库已初始化并执行必要的迁移
      */
     private function ensureInitialized()
     {
+        // 如果系统尚未创建核心表，则先执行基础 schema.sql
         try {
             $stmt = $this->connection->query("SHOW TABLES LIKE 'uc_users'");
-            $exists = $stmt->fetch();
-            if ($exists) {
-                return; // 已初始化
-            }
-        } catch (\Throwable $e) {
-            // 忽略检测错误，尝试初始化
-        }
-        
-        $schemaFile = __DIR__ . '/../../database/schema.sql';
-        if (!file_exists($schemaFile)) {
-            return; // 无法初始化（缺少文件），静默跳过
-        }
-        
-        $sql = file_get_contents($schemaFile);
-        if ($sql === false || trim($sql) === '') {
-            return;
-        }
-        
-        // 去除注释并按分号拆分执行
-        $lines = preg_split('/\r?\n/', $sql);
-        $clean = [];
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line === '' || strpos($line, '--') === 0 || strpos($line, '#') === 0) {
-                continue;
-            }
-            $clean[] = $line;
-        }
-        $sqlClean = implode("\n", $clean);
-        $statements = array_filter(array_map('trim', preg_split('/;\s*\n|;\s*$/m', $sqlClean)));
-        
-        $this->connection->beginTransaction();
-        try {
-            foreach ($statements as $statement) {
-                if ($statement !== '') {
-                    $this->connection->exec($statement);
+            $exists = $stmt ? $stmt->fetch() : false;
+            if (!$exists) {
+                $schemaFile = __DIR__ . '/../../database/schema.sql';
+                if (file_exists($schemaFile)) {
+                    $sql = file_get_contents($schemaFile);
+                    if ($sql !== false && trim($sql) !== '') {
+                        $lines = preg_split('/\r?\n/', $sql);
+                        $clean = [];
+                        foreach ($lines as $line) {
+                            $line = trim($line);
+                            if ($line === '' || strpos($line, '--') === 0 || strpos($line, '#') === 0) {
+                                continue;
+                            }
+                            $line = rtrim($line);
+                            $clean[] = $line;
+                        }
+                        $batch = implode("\n", $clean);
+                        $stmts = preg_split('/;\s*\n|;\s*$/m', $batch);
+                        $this->connection->beginTransaction();
+                        try {
+                            foreach ($stmts as $st) {
+                                $st = trim($st);
+                                if ($st !== '') {
+                                    $this->connection->exec($st);
+                                }
+                            }
+                            $this->connection->commit();
+                        } catch (\Throwable $ie) {
+                            $this->connection->rollBack();
+                            error_log('[DB Init] 执行基础 schema 失败: ' . $ie->getMessage());
+                        }
+                    }
                 }
             }
-            $this->connection->commit();
         } catch (\Throwable $e) {
-            $this->connection->rollBack();
-            // 初始化失败不应让服务崩溃，记录到错误日志
-            error_log('[DB Init] 初始化失败: ' . $e->getMessage());
+            // 忽略检查失败但记录
+            error_log('[DB Init] 检查核心表失败: ' . $e->getMessage());
+        }
+
+        // 运行幾何迁移脚本（database/migrations/*.sql），按文件名顺序一次性执行
+        try {
+            $this->connection->exec("CREATE TABLE IF NOT EXISTS `uc_migrations` (\n  `id` INT AUTO_INCREMENT PRIMARY KEY,\n  `name` VARCHAR(255) UNIQUE,\n  `applied_at` INT NOT NULL\n)");
+            $applied = [];
+            $res = $this->connection->query("SELECT `name` FROM `uc_migrations`");
+            if ($res) {
+                foreach ($res as $row) {
+                    $applied[$row['name']] = true;
+                }
+            }
+            $dir = __DIR__ . '/../../database/migrations';
+            if (is_dir($dir)) {
+                $files = glob($dir . '/*.sql');
+                sort($files, SORT_STRING);
+                foreach ($files as $file) {
+                    $name = basename($file);
+                    if (isset($applied[$name])) {
+                        continue; // 已应用
+                    }
+                    $sql = file_get_contents($file);
+                    if ($sql === false || trim($sql) === '') {
+                        continue;
+                    }
+                    $parts = preg_split('/;\s*\n|;\s*$/m', $sql);
+                    $this->connection->beginTransaction();
+                    try {
+                        foreach ($parts as $p) {
+                            $p = trim($p);
+                            if ($p !== '') {
+                                $this->connection->exec($p);
+                            }
+                        }
+                        $ins = $this->connection->prepare("INSERT INTO `uc_migrations` (`name`, `applied_at`) VALUES (?, ?)");
+                        $ins->execute([$name, time()]);
+                        $this->connection->commit();
+                    } catch (\Throwable $ie) {
+                        $this->connection->rollBack();
+                        error_log('[DB Migration] 执行失败 ' . $name . ': ' . $ie->getMessage());
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // 记录但不阻塞启动
+            error_log('[DB Migration] 初始化失败: ' . $e->getMessage());
         }
     }
     

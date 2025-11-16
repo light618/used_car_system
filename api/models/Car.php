@@ -35,9 +35,9 @@ class Car
         }
         
         // 录入人员过滤
-        if (isset($params['input_user_id']) && $params['input_user_id'] > 0) {
+        if (isset($params['input_id']) && $params['input_id'] > 0) {
             $where .= " AND c.input_user_id = ?";
-            $bindParams[] = $params['input_user_id'];
+            $bindParams[] = $params['input_id'];
         }
         
         // 审核状态
@@ -67,13 +67,13 @@ class Car
             $bindParams[] = $keyword;
         }
         
-        // 授权车源（他店车源）
+        // 授权车源（他店）
         if (isset($params['authorized_store_id']) && $params['authorized_store_id'] > 0) {
             $where .= " AND EXISTS (SELECT 1 FROM uc_car_authorizations ca WHERE ca.car_id = c.id AND ca.authorized_store_id = ? AND ca.is_revoked = 0)";
             $bindParams[] = $params['authorized_store_id'];
         }
         
-        // 全部（本店+授权车源）
+        // 全部（本店+授权）
         if (isset($params['store_id_or_authorized']) && $params['store_id_or_authorized'] > 0) {
             $storeId = $params['store_id_or_authorized'];
             $where .= " AND (c.store_id = ? OR EXISTS (SELECT 1 FROM uc_car_authorizations ca WHERE ca.car_id = c.id AND ca.authorized_store_id = ? AND ca.is_revoked = 0))";
@@ -93,7 +93,7 @@ class Car
         
         // 获取总数
         $countSql = "SELECT COUNT(*) as total FROM uc_cars c {$where}";
-        $total = $this->db->queryOne($countSql, $bindParams)['total'];
+        $total = $this->db->queryOne($countSql, $bindParams)['total'] ?? 0;
         
         return ['list' => $list, 'total' => $total];
     }
@@ -112,7 +112,7 @@ class Car
     }
     
     /**
-     * 根据VIN获取车源
+     * 根据VIN获取
      */
     public function getByVin($vin)
     {
@@ -134,9 +134,9 @@ class Car
             store_id, input_user_id, brand, series, model, color, first_register_time, years,
             vin, plate_number, mileage, condition_description, purchase_price, purchase_time,
             car_status, audit_status, displacement, transmission, fuel_type, emission_standard,
-            transfer_count, insurance_expire_time, inspection_expire_time, car_config,
+            transfer_count, insurance_status, inspection_status, car_config,
             accident_record, maintenance_record, remark, create_time, update_time
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         return $this->db->insert($sql, [
             $data['store_id'],
@@ -232,6 +232,16 @@ class Car
             time(),
             $id
         ]);
+    }
+    
+    /**
+     * 标记车辆为已售出
+     */
+    public function sell($id, $soldStoreId)
+    {
+        $now = time();
+        $sql = "UPDATE uc_cars SET car_status = '已售出', sold_store_id = ?, sold_time = ?, update_time = ? WHERE id = ?";
+        return $this->db->execute($sql, [$soldStoreId, $now, $id]);
     }
     
     /**

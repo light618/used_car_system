@@ -4,6 +4,7 @@
  */
 
 // 设置时区
+
 date_default_timezone_set('Asia/Shanghai');
 
 // 开启错误报告（开发环境）
@@ -89,6 +90,7 @@ $routes = [
     '/car/audit' => ['CarController', 'audit'],
     '/car/authorize' => ['CarController', 'authorize'],
     '/car/revoke' => ['CarController', 'revoke'],
+    '/car/sell' => ['CarController', 'sell'],
     
     // 文件上传
     '/upload/image' => ['UploadController', 'image'],

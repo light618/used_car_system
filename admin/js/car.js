@@ -49,6 +49,13 @@ const Car = {
      */
     async revoke(carId, storeIds) {
         return API.post('/car/revoke', { car_id: carId, store_ids: JSON.stringify(storeIds) });
+    },
+    
+    /**
+     * 出售车源
+     */
+    async sell(carId, storeId) {
+        return API.post('/car/sell', { car_id: carId, store_id: storeId });
     }
 };
 

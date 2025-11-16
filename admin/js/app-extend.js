@@ -451,3 +451,53 @@ App.showAuthorizeModal = async function(carId, purchaseStoreId) {
     };
 };
 
+// 售卖弹窗/动作
+App.showSellModal = async function(carId, defaultStoreId = 0) {
+    if (this.currentRole === 'headquarters_admin') {
+        try {
+            const res = await Store.getAll();
+            const stores = res.data || [];
+            const options = [{ id: 0, store_name: '总部' }].concat(stores.map(s => ({ id: s.id, store_name: s.store_name || '-' })));
+            const optsHtml = options.map(o => `<option value="${o.id}" ${String(o.id)===String(defaultStoreId||0)?'selected':''}>${o.store_name}</option>`).join('');
+            const modal = this.createModal('售卖', `
+                <form id="sell-form">
+                    <div class="form-group">
+                        <label>选择售卖门店</label>
+                        <select id="sell-store-id" class="filter-select">${optsHtml}</select>
+                    </div>
+                    <div class="btn-group" style="margin-top: 20px;">
+                        <button type="submit" class="btn btn-primary">确认售卖</button>
+                        <button type="button" class="btn btn-secondary" onclick="App.closeModal()">取消</button>
+                    </div>
+                </form>
+            `);
+            const sel = document.getElementById('sell-store-id');
+            document.getElementById('sell-form').onsubmit = async (e) => {
+                e.preventDefault();
+                const sid = parseInt(sel.value || '0', 10) || 0;
+                try {
+                    await Car.sell(carId, sid);
+                    Toast.success('售卖成功');
+                    this.closeModal();
+                    await this.renderCarList();
+                } catch (err) {
+                    Toast.error(err.message || '售卖失败');
+                }
+            };
+        } catch (e) {
+            Toast.error('加载门店列表失败');
+        }
+    } else {
+        const confirm = await Toast.confirm('确认将该车源标记为已售？', '售卖确认');
+        if (!confirm) return;
+        try {
+            const sid = this.currentUser && this.currentUser.store_id ? this.currentUser.store_id : 0;
+            await Car.sell(carId, sid);
+            Toast.success('售卖成功');
+            await this.renderCarList();
+        } catch (e) {
+            Toast.error(e.message || '售卖失败');
+        }
+    }
+};
+

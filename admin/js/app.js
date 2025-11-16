@@ -290,6 +290,15 @@ const App = {
         }
     },
     
+    /** 计算库存天数（购买至今或售出时间） */
+    calcStockDays(purchaseTs, soldTs) {
+        if (!purchaseTs) return '-';
+        const start = parseInt(purchaseTs, 10) || 0;
+        const end = (soldTs && parseInt(soldTs, 10) > 0) ? parseInt(soldTs, 10) : Math.floor(Date.now() / 1000);
+        const days = Math.ceil((end - start) / 86400);
+        return days >= 0 ? `${days}天` : '-';
+    },
+
     /**
      * 渲染骨架屏（根据页面类型显示不同骨架）
      */
@@ -526,6 +535,7 @@ const App = {
                                 <th style="min-width: 100px;">收车价</th>
                                 <th style="min-width: 80px;">公里数</th>
                                 <th style="min-width: 80px;">年限</th>
+                                <th style="min-width: 100px;">库存天数</th>
                                 <th style="min-width: 100px;">车源状态</th>
                                 <th style="min-width: 100px;">审核状态</th>
                                 ${this.currentRole === 'store_admin' ? '<th style="min-width: 80px;">来源</th>' : ''}
@@ -535,39 +545,45 @@ const App = {
                         <tbody>
                             ${cars.length === 0 ? `
                                 <tr>
-                                    <td colspan="${this.currentRole === 'headquarters_admin' ? '10' : this.currentRole === 'store_admin' ? '9' : '7'}" style="text-align: center; padding: 40px;">
+                                    <td colspan="${this.currentRole === 'headquarters_admin' ? '11' : this.currentRole === 'store_admin' ? '10' : '8'}" style="text-align: center; padding: 40px;">
                                         <div class="empty-state">
                                             <i class="fas fa-car"></i>
                                             <p>暂无车源数据</p>
                                         </div>
                                     </td>
                                 </tr>
-                            ` : cars.map(car => `
+                            ` :
+                            cars.map(car => {
+                                const canSell = (car.audit_status === '审核通过' && car.car_status !== '已售出' && (
+                                    this.currentRole === 'headquarters_admin' || (this.currentRole === 'store_admin')
+                                ));
+                                return `
                                 <tr>
+                                    <div style="display:none"></div>
                                     <td class="text-nowrap">${car.plate_number || '-'}</td>
                                     <td class="text-nowrap">${(car.brand || '') + ' ' + (car.series || '')}</td>
-                                    ${this.currentRole === 'headquarters_admin' ? `
-                                        <td class="text-nowrap">${car.store_name || '-'}</td>
-                                    ` : ''}
+                                    ${this.currentRole === 'headquarters_admin' ? `<td class="text-nowrap">${(parseInt(car.store_id) === 0 ? '总部' : (car.store_name || '-'))}</td>` : ''}
                                     <td class="text-nowrap" style="color: var(--danger-color); font-weight: 600;">¥${car.purchase_price ? parseFloat(car.purchase_price).toLocaleString() : '0'}</td>
                                     <td class="text-nowrap">${car.mileage ? parseFloat(car.mileage).toLocaleString() + '公里' : '-'}</td>
                                     <td class="text-nowrap">${car.years || 0}年</td>
+                                    <td class="text-nowrap">${this.calcStockDays(car.purchase_time, car.sold_time)}</td>
                                     <td class="text-nowrap"><span class="badge badge-info">${car.car_status || '-'}</span></td>
-                                    <td class="text-nowrap"><span class="badge ${car.audit_status === '审核通过' ? 'badge-success' : car.audit_status === '审核驳回' ? 'badge-danger' : 'badge-warning'}">${car.audit_status || '-'}</span></td>
-                                    ${this.currentRole === 'store_admin' ? `
-                                        <td class="text-nowrap">${car.is_authorized ? `<span class="badge badge-warning">他店</span>` : '<span class="badge badge-info">本店</span>'}</td>
-                                    ` : ''}
+                                    <td class="text-nowrap"><span class="${car.audit_status === '审核通过' ? 'badge badge-success' : (car.audit_status === '审核驳回' ? 'badge badge-danger' : 'badge badge-warning')}">${car.audit_status || '-'}</span></td>
+                                    ${this.currentRole === 'store_admin' ? `<td class="text-nowrap">${car.is_authorized ? '<span class="badge badge-warning">他店</span>' : '<span class="badge badge-info">本店</span>'}</td>` : ''}
                                     <td class="text-nowrap">
                                         <button class="btn btn-sm btn-secondary" onclick="App.showCarDetail(${car.id})">详情</button>
                                         ${this.currentRole === 'store_input' && (car.audit_status === '待审核' || car.audit_status === '审核驳回') ? `
                                             <button class="btn btn-sm btn-warning" onclick="App.showEditCarForm(${car.id})">编辑</button>
                                         ` : ''}
-                                        ${this.currentRole === 'headquarters_admin' && car.audit_status === '审核通过' ? `
+                                        ${this.currentRole === 'headquarters_admin' && car.audit_status === '审核通过' && car.car_status !== '已售出' ? `
                                             <button class="btn btn-sm btn-primary" onclick="App.showAuthorizeModal(${car.id}, ${car.store_id})">授权</button>
+                                            <button class="btn btn-sm btn-success" onclick="App.showSellModal(${car.id}, ${car.store_id || 0})">售卖</button>
+                                        ` : ''}
+                                        ${this.currentRole === 'store_admin' && car.audit_status === '审核通过' && (parseInt(car.store_id) === parseInt(this.currentUser?.store_id) || car.is_authorized) && car.car_status !== '已售出' ? `
+                                            <button class="btn btn-sm btn-success" onclick="App.showSellModal(${car.id}, ${this.currentUser?.store_id || 0})">售卖</button>
                                         ` : ''}
                                     </td>
-                                </tr>
-                            `).join('')}
+                                </tr>`;}).join('')}
                         </tbody>
                     </table>
                 </div>
@@ -1107,9 +1123,20 @@ const App = {
                     ` : ''}
                 ` : ''}
                 
-                ${this.currentRole === 'headquarters_admin' && car.audit_status === '审核通过' ? `
+                <div class="detail-section">
+                    <div class="detail-text">库存天数：<strong>${this.calcStockDays(car.purchase_time, car.sold_time)}</strong></div>
+                </div>
+                
+                ${((this.currentRole === 'headquarters_admin') && car.audit_status === '审核通过' && car.car_status !== '已售出') ? `
                     <div class="detail-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
                         <button class="btn btn-primary" onclick="App.showAuthorizeModal(${car.id}, ${car.store_id})">授权</button>
+                        <button class="btn btn-success" style="margin-left: 8px;" onclick="App.showSellModal(${car.id}, ${car.store_id || 0})">售卖</button>
+                    </div>
+                ` : ''}
+                
+                ${((this.currentRole === 'store_admin') && car.audit_status === '审核通过' && car.car_status !== '已售出') ? `
+                    <div class="detail-section" style="margin-top: 12px;">
+                        <button class="btn btn-success" onclick="App.showSellModal(${car.id}, ${this.currentUser?.store_id || 0})">售卖</button>
                     </div>
                 ` : ''}
             </div>

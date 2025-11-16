@@ -93,30 +93,21 @@ class CarController
             Response::error('车源不存在');
         }
         
-        // 权限检查
-        if ($payload['role'] == 'store_input') {
-            // 录入员只能看自己录入的（未审核前）
-            if ($car['audit_status'] != '审核通过' && $car['input_user_id'] != $payload['user_id']) {
-                Response::error('无权限查看');
-            }
-        } elseif ($payload['role'] == 'store_admin') {
-            // 门店管理员：本店或授权车源
-            if ($car['store_id'] != $payload['store_id']) {
-                $authModel = new CarAuthorization();
-                if (!$authModel->hasPermission($id, $payload['store_id'])) {
-                    Response::error('无权限查看');
-                }
-            }
-        }
+        // 权益信息：返回已授权门店列表，供前端决定是否显示售卖/来源
+        $authModel = new CarAuthorization();
+        $car['authorized_stores'] = $authModel->getAuthorizedStores($id);
         
-        // 获取图片
-        $imageModel = new CarImage();
-        $car['images'] = $imageModel->getByCarId($id);
-        
-        // 获取授权门店列表（如果是本店车源且是总部管理员）
-        if ($payload['role'] == 'headquarters_admin') {
-            $authModel = new CarAuthorization();
-            $car['authorized_stores'] = $authModel->getAuthorizedStores($id);
+        // 权限检查（仅限门店查看本店或被授权且已审核通过的车源）
+        if ($payload['role'] == 'store_input' || $payload['role'] == 'store_admin') {
+            $isOwner = intval($car['store_id']) === intval($payload['store_id']);
+            $isAuthorized = false;
+            if (!$isOwner) {
+                $isAuthorized = array_reduce($car['authorized_stores'] ?? [], function($carry, $it){ return $carry || !empty($it['authorized_store_id']) && intval($it['authorized_store_id']) > 0; }, false);
+            }
+            if (!$isOwner && !$isAuthorized && ($car['audit_status'] ?? '') !== '待审核') {
+                // 若既不是收车门店也未授权则拒绝
+                Response::error('无权查看该车源', 403);
+            }
         }
         
         Response::success($car);
@@ -371,7 +362,69 @@ class CarController
         if ($result) {
             Response::success([], '收回授权成功');
         } else {
-            Response::error('收回授权失败');
+            Response::error('收回失败');
         }
+    }
+
+    /**
+     * 售卖车源（总部/有权限门店）
+     */
+    public function sell()
+    {
+        $payload = Auth::verifyToken();
+        $postData = Request::getData();
+        $carId = isset($postData['car_id']) ? intval($postData['car_id']) : 0;
+        $soldStoreId = isset($postData['sold_store_id']) ? intval($postData['sold_store_id']) : 0;
+
+        if (!$carId) {
+            Response::error('车源ID不能为空');
+        }
+
+        $carModel = new Car();
+        $car = $carModel->getById($carId);
+        if (!$car) {
+            Response::error('车源不存在');
+        }
+
+        // 仅允许已审核通过且未售出的车源被售卖
+        if (($car['audit_status'] ?? '') !== '审核通过') {
+            Response::error('仅支持对已审核通过的车源进行售卖');
+        }
+        if (($car['car_status'] ?? '') === '已售出') {
+            Response::error('该车源已售出');
+        }
+
+        // 权限校验：总部可售任意；门店只能售自己收车或被授权的车源
+        $role = $payload['role'] ?? '';
+        $userStoreId = intval($payload['store_id'] ?? 0);
+        $canSell = false;
+        if ($role === 'headquarters_admin') {
+            $can = true;
+        } else if ($role === 'store_admin') {
+            if (intval($car['store_id']) === $userStoreId) {
+                $can = true;
+            } else {
+                $authModel = new CarAuthorization();
+                $can = $authModel->hasPermission($carId, $userStoreId);
+            }
+        }
+
+        if (empty($can)) {
+            Response::error('无权限进行此操作', 403);
+        }
+
+        // 确定售出门店：总部可传入选择，门店固定为自身门店
+        if ($role !== 'headquarters_admin') {
+            $soldStoreId = $userStoreId;
+        }
+        if ($soldStoreId < 0) {
+            $soldStoreId = 0;
+        }
+
+        $ok = $carModel->sell($carId, $soldStoreId);
+        if ($ok) {
+            Response::success([], '售卖成功');
+        }
+        Response::error('售卖失败');
     }
 }
