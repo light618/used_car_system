@@ -1,8 +1,12 @@
 # 使用官方PHP 8.2镜像
 FROM php:8.2-cli
 
-# 安装必要的扩展
-RUN docker-php-ext-install pdo pdo_mysql mbstring
+# 安装系统依赖与必要的 PHP 扩展
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       libonig-dev \
+    && docker-php-ext-install pdo pdo_mysql mbstring \
+    && rm -rf /var/lib/apt/lists/*
 
 # 安装Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -22,9 +26,6 @@ COPY . .
 # 创建上传目录
 RUN mkdir -p public/uploads/cars public/uploads/greenbook && \
     chmod -R 777 public/uploads
-
-# 暴露端口
-EXPOSE $PORT
 
 # 启动命令
 CMD php -S 0.0.0.0:$PORT -t public public/router.php
