@@ -5,6 +5,13 @@
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
+// 健康检查
+if ($uri === '/healthz') {
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'ok';
+    return true;
+}
+
 // 处理admin目录下的静态资源（CSS、JS、图片等）
 if (strpos($uri, '/admin') === 0) {
     $adminResource = __DIR__ . '/../admin' . substr($uri, 6); // 移除 /admin 前缀
@@ -27,14 +34,12 @@ if (strpos($uri, '/admin') === 0) {
         readfile($adminResource);
         return true;
     }
-    // 如果是访问 /admin 或 /admin/，返回index.html
-    if ($uri === '/admin' || $uri === '/admin/') {
-        $adminFile = __DIR__ . '/../admin/index.html';
-        if (file_exists($adminFile)) {
-            header('Content-Type: text/html; charset=utf-8');
-            readfile($adminFile);
-            return true;
-        }
+    // 访问 /admin 或任意 /admin 路径，返回index.html（前端路由入口）
+    $adminFile = __DIR__ . '/../admin/index.html';
+    if (file_exists($adminFile)) {
+        header('Content-Type: text/html; charset=utf-8');
+        readfile($adminFile);
+        return true;
     }
 }
 
