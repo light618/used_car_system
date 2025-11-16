@@ -4,19 +4,37 @@
  * 主公，请根据实际环境修改配置
  */
 
+// 兼容 Railway 的 MYSQL_URL（形如：mysql://user:pass@host:port/database）
+$mysqlUrl = getenv('MYSQL_URL') ?: getenv('JAWSDB_URL');
+if ($mysqlUrl) {
+    $parts = parse_url($mysqlUrl);
+    // 允许 mysql:// 和 mysql2:// 等前缀
+    $database = isset($parts['path']) ? ltrim($parts['path'], '/') : '';
+    $hostname = $parts['host'] ?? '127.0.0.1';
+    $username = $parts['user'] ?? 'root';
+    $password = $parts['pass'] ?? '';
+    $hostport = $parts['port'] ?? '3306';
+} else {
+    $hostname = getenv('MYSQL_HOST') ?: getenv('DB_HOST') ?: '127.0.0.1';
+    $database = getenv('MYSQL_DATABASE') ?: getenv('DB_NAME') ?: 'used_car_system';
+    $username = getenv('MYSQL_USER') ?: getenv('DB_USER') ?: 'root';
+    $password = getenv('MYSQL_PASSWORD') ?: getenv('DB_PASSWORD') ?: '';
+    $hostport = getenv('MYSQL_PORT') ?: getenv('DB_PORT') ?: '3306';
+}
+
 return [
     // 数据库类型
     'type'            => 'mysql',
-    // 服务器地址（支持Railway环境变量）
-    'hostname'        => getenv('MYSQL_HOST') ?: getenv('DB_HOST') ?: '127.0.0.1',
-    // 数据库名（支持Railway环境变量）
-    'database'        => getenv('MYSQL_DATABASE') ?: getenv('DB_NAME') ?: 'used_car_system',
-    // 用户名（支持Railway环境变量）
-    'username'        => getenv('MYSQL_USER') ?: getenv('DB_USER') ?: 'root',
-    // 密码（支持Railway环境变量）
-    'password'        => getenv('MYSQL_PASSWORD') ?: getenv('DB_PASSWORD') ?: '',
-    // 端口（支持Railway环境变量）
-    'hostport'        => getenv('MYSQL_PORT') ?: getenv('DB_PORT') ?: '3306',
+    // 服务器地址
+    'hostname'        => $hostname,
+    // 数据库名
+    'database'        => $database,
+    // 用户名
+    'username'        => $username,
+    // 密码
+    'password'        => $password,
+    // 端口
+    'hostport'        => $hostport,
     // 连接dsn
     'dsn'             => '',
     // 数据库连接参数
