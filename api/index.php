@@ -48,6 +48,7 @@ require_once __DIR__ . '/controllers/StoreController.php';
 require_once __DIR__ . '/controllers/UserController.php';
 require_once __DIR__ . '/controllers/CarController.php';
 require_once __DIR__ . '/controllers/UploadController.php';
+require_once __DIR__ . '/controllers/InitController.php';
 require_once __DIR__ . '/controllers/CaptchaController.php';
 
 // 路由处理
@@ -97,6 +98,10 @@ $routes = [
     
     // 文件上传
     '/upload/image' => ['UploadController', 'image'],
+    
+    // 初始化（用于测试数据生成）
+    '/init/seed-data' => ['InitController', 'seedData'],
+    '/init/check-db' => ['InitController', 'checkDb'],
 ];
 
 // 查找路由

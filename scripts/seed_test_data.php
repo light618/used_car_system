@@ -10,7 +10,32 @@ require_once __DIR__ . '/../api/models/Database.php';
 use App\Models\Database;
 
 echo "初始化测试数据...\n";
+
+// 显示数据库连接信息（用于调试）
+$dbConfig = require __DIR__ . '/../config/database.php';
+echo "数据库连接信息：\n";
+echo "  主机: " . $dbConfig['hostname'] . "\n";
+echo "  数据库: " . $dbConfig['database'] . "\n";
+echo "  用户: " . $dbConfig['username'] . "\n";
+echo "  端口: " . $dbConfig['hostport'] . "\n";
+echo "  环境变量 MYSQL_URL: " . (getenv('MYSQL_URL') ? '已设置' : '未设置') . "\n";
+echo "\n";
+
 $db = Database::getInstance()->getConnection();
+
+// 测试连接并显示当前数据库
+try {
+    $testStmt = $db->query("SELECT DATABASE() as db, COUNT(*) as car_count FROM uc_cars");
+    $testResult = $testStmt->fetch(PDO::FETCH_ASSOC);
+    echo "✅ 数据库连接成功！\n";
+    echo "  当前数据库: " . ($testResult['db'] ?? '未知') . "\n";
+    echo "  现有车源数量: " . ($testResult['car_count'] ?? 0) . "\n";
+    echo "\n";
+} catch (Exception $e) {
+    echo "❌ 数据库连接失败: " . $e->getMessage() . "\n";
+    exit(1);
+}
+
 $now = time();
 
 /** ---------- 基础工具函数 ---------- */
