@@ -56,6 +56,26 @@ const Car = {
      */
     async sell(carId, storeId) {
         return API.post('/car/sell', { car_id: carId, store_id: storeId });
+    },
+    
+    /**
+     * 预定车源
+     */
+    async reserve(carId) {
+        return API.post('/car/reserve', { car_id: carId });
+    },
+    
+    /**
+     * 取消预定
+     */
+    async unreserve(carId) {
+        return API.post('/car/unreserve', { car_id: carId });
+    },
+    /**
+     * 上架车源（待上架->待出售）
+     */
+    async publish(carId) {
+        return API.post('/car/publish', { car_id: carId });
     }
 };
 

@@ -6,7 +6,9 @@
 App.renderCarAudit = async function() {
     document.getElementById('page-title').textContent = '待审核车源';
     
-    const result = await Car.getList({ page: 1, limit: 20, audit_status: '待审核' });
+    // 待审核列表：仅查询本机构的待上架/待审核车源
+    // 后端会自动按store_id过滤，确保只显示本机构录入的
+    const result = await Car.getList({ page: 1, limit: 20, car_status: '待上架' });
     const cars = result.data.list;
     
     const html = `
@@ -341,8 +343,11 @@ App.showAuthorizeModal = async function(carId, purchaseStoreId) {
     const authorizedStoreIds = car.authorized_stores ? car.authorized_stores.map(s => s.authorized_store_id || s.id) : [];
     
     const storesResult = await Store.getAll();
-    // 排除收车门店（本门店不需要授权给自己）
-    const stores = storesResult.data.filter(store => store.id != purchaseStoreId);
+    // 排除收车门店和总部（0），因为收车机构本身就有权限，总部也有权限，不需要额外授权
+    const stores = storesResult.data.filter(store => {
+        const sid = parseInt(store.id || 0);
+        return sid > 0 && sid !== parseInt(purchaseStoreId || 0);
+    });
     
     if (stores.length === 0) {
         Toast.warning('没有可授权的门店');
@@ -498,6 +503,77 @@ App.showSellModal = async function(carId, defaultStoreId = 0) {
         } catch (e) {
             Toast.error(e.message || '售卖失败');
         }
+    }
+};
+
+// 首次登录引导（简版 Stepper）
+App.showOnboarding = function() {
+    const steps = [
+        { title: '欢迎上手', desc: '这是总部管理员的工作台，引导将带您快速完成关键操作。' },
+        { title: '创建门店与账号', desc: '进入“门店管理”，新建门店并为其创建管理员/录入员账号。' },
+        { title: '新增车源', desc: '在“新增车源”录入车辆基础信息与照片。' },
+        { title: '上架与授权', desc: '将车源上架为“待出售”，并在“授权”中选择可见门店。' },
+        { title: '预定与售卖', desc: '门店可预定车源，预定门店可继续售卖完成闭环。' }
+    ];
+    let idx = 0;
+    const render = () => {
+        const s = steps[idx];
+        const content = `
+            <div class="guide-modal">
+                <h4 style="margin:0 0 8px 0;">${s.title}</h4>
+                <div style="color:var(--text-secondary); line-height:1.6;">${s.desc}</div>
+                <div style="margin-top:16px; display:flex; justify-content:space-between;">
+                    <button class="btn btn-secondary" ${idx===0?'disabled':''} ${idx===0?'':'onclick="App.__guidePrev()"' }>上一步</button>
+                    <div>
+                        ${idx<steps.length-1?`<button class="btn btn-primary" onclick="App.__guideNext()">下一步</button>`:`<button class="btn btn-success" onclick="App.__guideDone()">完成</button>`}
+                    </div>
+                </div>
+            </div>
+        `;
+        App.createModal('新手引导', content);
+    };
+    App.__guidePrev = () => { if (idx>0){ idx--; render(); } };
+    App.__guideNext = () => { if (idx<steps.length-1){ idx++; render(); } };
+    App.__guideDone = () => { localStorage.setItem('onboarding_done','1'); App.closeModal(); };
+    render();
+};
+
+// 预定
+App.reserveCar = async function(carId) {
+    const confirmed = await Toast.confirm('确认预定该车源并锁定？', '预定确认');
+    if (!confirmed) return;
+    try {
+        await Car.reserve(carId);
+        Toast.success('预定成功');
+        await this.renderCarList();
+    } catch (e) {
+        Toast.error(e.message || '预定失败');
+    }
+};
+
+// 取消预定
+App.unreserveCar = async function(carId) {
+    const confirmed = await Toast.confirm('确认取消该车源的预定？', '取消预定确认');
+    if (!confirmed) return;
+    try {
+        await Car.unreserve(carId);
+        Toast.success('已取消预定');
+        await this.renderCarList();
+    } catch (e) {
+        Toast.error(e.message || '取消预定失败');
+    }
+};
+
+// 上架（待上架 -> 待出售）
+App.publishCar = async function(carId) {
+    const confirmed = await Toast.confirm('确认上架该车源为“待出售”？', '上架确认');
+    if (!confirmed) return;
+    try {
+        await Car.publish(carId);
+        Toast.success('上架成功');
+        await this.renderCarList();
+    } catch (e) {
+        Toast.error(e.message || '上架失败');
     }
 };
 

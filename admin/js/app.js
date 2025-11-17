@@ -185,6 +185,14 @@ const App = {
         document.getElementById('change-password-btn').onclick = () => {
             this.showChangePasswordModal();
         };
+
+        // 首次登录新手引导
+        try {
+            const done = localStorage.getItem('onboarding_done');
+            if (!done && typeof App.showOnboarding === 'function') {
+                App.showOnboarding();
+            }
+        } catch (e) {}
     },
     
     /**
@@ -198,17 +206,20 @@ const App = {
                 { icon: 'fa-plus-circle', text: '新增车源', page: 'car-create' },
                 { icon: 'fa-clipboard-check', text: '待审核车源', page: 'car-audit' },
                 { icon: 'fa-store', text: '门店管理', page: 'store-list' },
-                { icon: 'fa-car', text: '车源管理', page: 'car-list' }
+                { icon: 'fa-car', text: '车源管理', page: 'car-list' },
+                { icon: 'fa-book', text: '新手指引', page: 'guide' }
             );
         } else if (this.currentRole === 'store_admin') {
             menuItems.push(
                 { icon: 'fa-clipboard-check', text: '待审核车源', page: 'car-audit' },
-                { icon: 'fa-car', text: '车源管理', page: 'car-list' }
+                { icon: 'fa-car', text: '车源管理', page: 'car-list' },
+                { icon: 'fa-book', text: '新手指引', page: 'guide' }
             );
         } else if (this.currentRole === 'store_input') {
             menuItems.push(
                 { icon: 'fa-plus-circle', text: '新增车源', page: 'car-create' },
-                { icon: 'fa-car', text: '我的车源', page: 'car-list' }
+                { icon: 'fa-car', text: '我的车源', page: 'car-list' },
+                { icon: 'fa-book', text: '新手指引', page: 'guide' }
             );
         }
         
@@ -272,6 +283,9 @@ const App = {
                 case 'store-list':
                     await this.renderStoreList();
                     break;
+                case 'guide':
+                    await this.renderGuide();
+                    break;
                 case 'car-list':
                     await this.renderCarList();
                     break;
@@ -288,6 +302,965 @@ const App = {
             console.error('Load page error:', error);
             contentArea.innerHTML = `<div class="empty-state">加载失败: ${error.message}</div>`;
         }
+    },
+    
+    /**
+     * 渲染新手指引
+     */
+    async renderGuide() {
+        document.getElementById('page-title').textContent = '新手指引';
+        const isHeadquarters = this.currentRole === 'headquarters_admin';
+        const html = `
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">${isHeadquarters ? '总部管理员' : '门店管理员'}新手指引</h3>
+                </div>
+                <div class="card-body">
+                    <!-- 业务流程横向流程图 -->
+                    <div style="margin-bottom: 32px;">
+                        <h4 style="color: var(--primary-color); margin-bottom: 20px; font-size: 18px;">📋 业务流程</h4>
+                        <div class="process-flow">
+                            <div class="process-step">
+                                <div class="process-step-number">1</div>
+                                <div class="process-step-title">门店录入车源</div>
+                                <div class="process-step-desc">门店管理员或录入员在"新增车源"中录入车辆信息</div>
+                            </div>
+                            <div class="process-arrow">→</div>
+                            <div class="process-step">
+                                <div class="process-step-number">2</div>
+                                <div class="process-step-title">门店审核上架</div>
+                                <div class="process-step-desc">门店管理员在"待审核车源"中审核并上架车源</div>
+                            </div>
+                            <div class="process-arrow">→</div>
+                            <div class="process-step">
+                                <div class="process-step-number">3</div>
+                                <div class="process-step-title">总部授权门店</div>
+                                <div class="process-step-desc">总部在"车源管理"中将车源授权给其他门店</div>
+                            </div>
+                            <div class="process-arrow">→</div>
+                            <div class="process-step">
+                                <div class="process-step-number">4</div>
+                                <div class="process-step-title">门店预定/售卖</div>
+                                <div class="process-step-desc">门店可以对可见的车源进行预定或直接售卖</div>
+                            </div>
+                            <div class="process-arrow">→</div>
+                            <div class="process-step">
+                                <div class="process-step-number">5</div>
+                                <div class="process-step-title">售出标记</div>
+                                <div class="process-step-desc">完成售卖后，车源状态自动更新为"已售出"</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 初始化设置 -->
+                    <div style="margin-bottom: 24px;">
+                        <h4 style="color: var(--primary-color); margin-bottom: 16px; font-size: 18px;">⚙️ 初始化设置</h4>
+                        <ol class="guide-steps">
+                            ${isHeadquarters ? `
+                            <li>
+                                <strong>创建门店与账号：</strong> 进入"门店管理"，新增门店；在"门店详情"中为门店创建管理员/录入员账号。
+                            </li>
+                            ` : `
+                            <li>
+                                <strong>门店账号设置：</strong> 门店账号由总部管理员创建，门店管理员登录后可进行车源管理操作。
+                            </li>
+                            `}
+                        </ol>
+                    </div>
+                    
+                    <!-- 业务功能 -->
+                    <div style="margin-bottom: 32px;">
+                        <h4 style="color: var(--primary-color); margin-bottom: 16px; font-size: 18px;">🔄 业务功能</h4>
+                        <ol class="guide-steps">
+                            <li>
+                                <strong>门店录入车源：</strong> 门店管理员或录入员登录后，进入"新增车源"录入车辆信息并提交审核。
+                                <button class="btn btn-sm btn-outline" style="margin-left: 12px; padding: 6px 16px;" onclick="App.startOnboarding('car-create', 'create')">开始体验</button>
+                            </li>
+                            <li>
+                                <strong>门店审核上架：</strong> 门店管理员在"待审核车源"中审核门店提交的车源，审核通过后车源状态变为"待出售"。
+                                <button class="btn btn-sm btn-outline" style="margin-left: 12px; padding: 6px 16px;" onclick="App.startOnboarding('car-audit', 'audit')">开始体验</button>
+                            </li>
+                            ${isHeadquarters ? `
+                            <li>
+                                <strong>授权给门店：</strong> 在"车源管理"中点击"授权"，在弹窗勾选需要可见该车的门店，支持批量授权/取消授权。
+                                <button class="btn btn-sm btn-outline" style="margin-left: 12px; padding: 6px 16px;" onclick="App.startOnboarding('car-list', 'authorize')">开始体验</button>
+                            </li>
+                            ` : ''}
+                            <li>
+                                <strong>预定车源：</strong> 待出售状态的车源，总部和门店都可以进行预定，预定后车源状态变为"已预定"，只有预定方可以取消预定或售卖。
+                                <button class="btn btn-sm btn-outline" style="margin-left: 12px; padding: 6px 16px;" onclick="App.startOnboarding('car-list', 'reserve')">开始体验</button>
+                            </li>
+                            <li>
+                                <strong>售卖车源：</strong> 待出售或已预定（仅预定方）的车源，可以点击"售卖"完成售出登记；总部可选择售卖门店。
+                                <button class="btn btn-sm btn-outline" style="margin-left: 12px; padding: 6px 16px;" onclick="App.startOnboarding('car-list', 'sell')">开始体验</button>
+                            </li>
+                        </ol>
+                    </div>
+                    
+                    <!-- 完整流程体验入口暂时屏蔽 -->
+                </div>
+            </div>
+        `;
+        document.getElementById('content-area').innerHTML = html;
+    },
+    
+    /**
+     * 开始新手指引（页面切换式）
+     */
+    async startOnboarding(pageName, action = null) {
+        // 关闭当前可能存在的指引遮罩
+        this.closeOnboarding();
+        
+        // 导航到目标页面
+        await this.loadPage(pageName);
+        
+        // 等待页面渲染完成
+        setTimeout(() => {
+            this.showOnboardingHighlight(pageName, action);
+        }, 300);
+    },
+    
+    /**
+     * 开始完整流程引导
+     */
+    async startOnboardingFlow() {
+        this.onboardingMode = true; // 标记为引导模式
+        this.onboardingStep = 0;
+        // 全流程从门店录入车源信息开始
+        this.onboardingSteps = this.currentRole === 'headquarters_admin' ? [
+            { page: 'car-create', action: 'create', message: '第一步：门店录入车源。填写车辆信息，完成后点击"提交审核"。' },
+            { page: 'car-audit', action: 'audit', message: '第二步：门店审核上架。点击"通过"按钮审核车源。' },
+            { page: 'car-list', action: 'authorize', message: '第三步：总部授权门店。点击"授权"按钮将车源授权给其他门店。' },
+            { page: 'car-list', action: 'reserve', message: '第四步：门店预定车源。点击"预定"按钮预定车源。' },
+            { page: 'car-list', action: 'sell', message: '第五步：售卖车源。点击"售卖"按钮完成售出登记。' }
+        ] : [
+            { page: 'car-create', action: 'create', message: '第一步：门店录入车源。填写车辆信息，完成后点击"提交审核"。' },
+            { page: 'car-audit', action: 'audit', message: '第二步：门店审核上架。点击"通过"按钮审核车源。' },
+            { page: 'car-list', action: 'reserve', message: '第三步：门店预定车源。点击"预定"按钮预定车源。' },
+            { page: 'car-list', action: 'sell', message: '第四步：售卖车源。点击"售卖"按钮完成售出登记。' }
+        ];
+        
+        await this.nextOnboardingStep();
+    },
+    
+    /**
+     * 下一步引导
+     */
+    async nextOnboardingStep() {
+        if (this.onboardingStep >= this.onboardingSteps.length) {
+            this.endOnboardingFlow();
+            return;
+        }
+        
+        const step = this.onboardingSteps[this.onboardingStep];
+        
+        // 先高亮左侧菜单入口（等待2秒后自动继续）
+        await this.highlightMenuEntry(step.page);
+        
+        // 关闭菜单高亮遮罩
+        this.closeOnboarding();
+        
+        // 加载页面
+        await this.loadOnboardingPage(step.page, step.action);
+        
+        // 等待页面渲染后显示高亮和步骤信息
+        setTimeout(() => {
+            try {
+                // 如果是表单页面，先滚动到底部
+                if (step.page === 'car-create') {
+                    const submitButton = document.querySelector('#mock-submit-btn') ||
+                                       document.querySelector('form#car-form button[type="submit"]') ||
+                                       document.querySelector('form#car-form .btn-primary') ||
+                                       document.querySelector('.btn-group .btn-primary');
+                    if (submitButton) {
+                        // 先滚动到按钮位置
+                        submitButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // 等待滚动完成后再显示高亮和步骤信息
+                        setTimeout(() => {
+                            // 先显示步骤信息，确保用户能看到
+                            this.showOnboardingStepInfo(step);
+                            // 然后显示高亮
+                            setTimeout(() => {
+                                try {
+                                    this.showOnboardingHighlight(step.page, step.action);
+                                } catch (error) {
+                                    console.error('显示引导高亮失败:', error);
+                                }
+                            }, 100);
+                        }, 600);
+                    } else {
+                        // 如果找不到按钮，延迟再试
+                        setTimeout(() => {
+                            // 先显示步骤信息，确保用户能看到
+                            this.showOnboardingStepInfo(step);
+                            // 然后显示高亮
+                            setTimeout(() => {
+                                try {
+                                    this.showOnboardingHighlight(step.page, step.action);
+                                } catch (error) {
+                                    console.error('显示引导高亮失败:', error);
+                                }
+                            }, 100);
+                        }, 500);
+                    }
+                } else {
+                    // 非表单页面先显示步骤信息，再显示高亮
+                    this.showOnboardingStepInfo(step);
+                    setTimeout(() => {
+                        try {
+                            this.showOnboardingHighlight(step.page, step.action);
+                        } catch (error) {
+                            console.error('显示引导高亮失败:', error);
+                        }
+                    }, 100);
+                }
+            } catch (error) {
+                console.error('显示引导失败:', error);
+                // 即使高亮失败，也要显示步骤信息
+                try {
+                    this.showOnboardingStepInfo(step);
+                } catch (e) {
+                    console.error('显示步骤信息也失败:', e);
+                }
+            }
+        }, 1000);
+    },
+    
+    /**
+     * 高亮左侧菜单入口
+     */
+    async highlightMenuEntry(pageName) {
+        return new Promise((resolve) => {
+            // 关闭当前遮罩
+            this.closeOnboarding();
+            
+            // 创建菜单高亮遮罩
+            const overlay = document.createElement('div');
+            overlay.id = 'onboarding-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.15);
+                z-index: 9999;
+            `;
+            
+            // 查找对应的菜单项
+            const menuItem = document.querySelector(`.nav-link[data-page="${pageName}"]`);
+            if (menuItem) {
+                // 滚动到菜单项可见
+                menuItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                setTimeout(() => {
+                    const rect = menuItem.getBoundingClientRect();
+                    const highlight = document.createElement('div');
+                    highlight.style.cssText = `
+                        position: fixed;
+                        top: ${rect.top}px;
+                        left: ${rect.left}px;
+                        width: ${rect.width}px;
+                        height: ${rect.height}px;
+                        border: 3px solid var(--primary-color);
+                        border-radius: 8px;
+                        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.15), 0 0 20px rgba(59, 130, 246, 0.5);
+                        z-index: 10000;
+                        pointer-events: none;
+                        animation: pulse 2s infinite;
+                    `;
+                    
+                    const tooltip = document.createElement('div');
+                    tooltip.style.cssText = `
+                        position: fixed;
+                        top: ${rect.bottom + 20}px;
+                        left: ${Math.max(20, rect.left)}px;
+                        background: white;
+                        padding: 12px 16px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                        z-index: 10001;
+                        font-size: 14px;
+                        color: var(--text-primary);
+                        max-width: 250px;
+                    `;
+                    tooltip.innerHTML = `
+                        <div style="font-weight: 600; color: var(--primary-color);">📍 菜单导航</div>
+                        <div style="margin-top: 4px;">系统将自动跳转到此页面</div>
+                    `;
+                    
+                    overlay.appendChild(highlight);
+                    overlay.appendChild(tooltip);
+                    document.body.appendChild(overlay);
+                    
+                    // 2秒后自动继续
+                    setTimeout(() => {
+                        resolve();
+                    }, 2000);
+                }, 300);
+            } else {
+                // 如果找不到菜单项，直接继续
+                resolve();
+            }
+        });
+    },
+    
+    /**
+     * 加载引导模式页面（使用mock数据）
+     */
+    async loadOnboardingPage(pageName, action) {
+        const contentArea = document.getElementById('content-area');
+        
+        // 更新菜单选中状态
+        const navMenu = document.getElementById('nav-menu');
+        if (navMenu) {
+            navMenu.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('data-page') === pageName) {
+                    link.classList.add('active');
+                }
+            });
+        }
+        
+        // 根据页面类型渲染mock数据
+        switch (pageName) {
+            case 'store-list':
+                contentArea.innerHTML = this.renderMockStoreList();
+                break;
+            case 'car-create':
+                contentArea.innerHTML = this.renderMockCarForm();
+                break;
+            case 'car-audit':
+                contentArea.innerHTML = this.renderMockCarAudit();
+                break;
+            case 'car-list':
+                contentArea.innerHTML = this.renderMockCarList(action);
+                break;
+        }
+    },
+    
+    /**
+     * 显示步骤信息卡片
+     */
+    showOnboardingStepInfo(step) {
+        // 移除旧的步骤信息
+        const oldStepInfo = document.querySelector('.onboarding-step-info');
+        if (oldStepInfo) oldStepInfo.remove();
+        
+        // 确保步骤信息正确
+        if (!this.onboardingSteps || this.onboardingSteps.length === 0) {
+            console.error('引导步骤未初始化', this.onboardingSteps);
+            return;
+        }
+        
+        const currentStep = this.onboardingStep !== null && this.onboardingStep !== undefined ? this.onboardingStep : 0;
+        const totalSteps = this.onboardingSteps.length;
+        const isLastStep = currentStep >= totalSteps - 1;
+        
+        const stepInfo = document.createElement('div');
+        stepInfo.className = 'onboarding-step-info';
+        stepInfo.style.cssText = `
+            position: fixed !important;
+            top: 20px !important;
+            right: 20px !important;
+            background: white !important;
+            padding: 20px !important;
+            border-radius: 8px !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+            z-index: 99999 !important;
+            max-width: 320px !important;
+            font-size: 14px !important;
+            line-height: 1.6 !important;
+            color: var(--text-primary) !important;
+            pointer-events: auto !important;
+        `;
+        
+        stepInfo.innerHTML = `
+            <div style="margin-bottom: 12px; font-weight: 600; color: var(--primary-color); font-size: 16px;">
+                步骤 ${currentStep + 1} / ${totalSteps}
+            </div>
+            <div style="margin-bottom: 16px; color: var(--text-primary);">${step.message || '请按照提示进行操作'}</div>
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                ${currentStep > 0 ? `
+                <button onclick="App.prevOnboardingStep()" style="flex: 1; padding: 10px; background: var(--bg-secondary); color: var(--text-primary); border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">上一步</button>
+                ` : '<div style="flex: 1;"></div>'}
+                <button onclick="App.onboardingStep++; App.nextOnboardingStep();" style="flex: 1; padding: 10px; background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                    ${isLastStep ? '完成' : '下一步'}
+                </button>
+            </div>
+            <button onclick="App.endOnboardingFlow(); return false;" style="width: 100%; padding: 10px; background: transparent; color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s;" onmouseover="this.style.background='var(--bg-secondary)'; this.style.color='var(--primary-color)';" onmouseout="this.style.background='transparent'; this.style.color='var(--text-secondary)';">
+                结束引导，进入真实页面
+            </button>
+        `;
+        document.body.appendChild(stepInfo);
+        
+        console.log('步骤信息已显示:', { currentStep, totalSteps, isLastStep, message: step.message });
+    },
+    
+    /**
+     * 结束引导流程，跳转到真实页面
+     */
+    async endOnboardingFlow() {
+        // 保存当前步骤信息
+        const currentStep = this.onboardingStep;
+        const currentSteps = this.onboardingSteps;
+        
+        // 清理引导状态
+        this.onboardingMode = false;
+        this.onboardingStep = null;
+        this.onboardingSteps = null;
+        this.closeOnboarding();
+        
+        // 移除步骤信息卡片
+        const stepInfo = document.querySelector('.onboarding-step-info');
+        if (stepInfo) {
+            stepInfo.remove();
+        }
+        
+        // 跳转到当前步骤对应的真实页面
+        if (currentStep !== null && currentSteps && currentStep < currentSteps.length) {
+            const step = currentSteps[currentStep];
+            await this.loadPage(step.page);
+        } else {
+            // 如果已完成或未定义，跳转到车源列表
+            await this.loadPage('car-list');
+        }
+        
+        Toast.success('🎉 引导完成！您现在可以开始实际操作了。');
+    },
+    
+    /**
+     * 上一步引导
+     */
+    async prevOnboardingStep() {
+        if (this.onboardingStep > 0) {
+            this.onboardingStep--;
+            await this.nextOnboardingStep();
+        }
+    },
+    
+    /**
+     * 获取Mock车源数据
+     */
+    getMockCarData() {
+        return {
+            brand: '奔驰',
+            series: 'C200L',
+            color: '白色',
+            first_register_time: '2020-06-15',
+            vin: 'WDDWF4KB0LR123456',
+            plate_number: '京A12345',
+            mileage: '35000',
+            condition_description: '车况良好，无重大事故，定期保养',
+            purchase_price: '280000',
+            displacement: '2.0',
+            transmission: '自动',
+            fuel_type: '汽油',
+            emission_standard: '国六',
+            transfer_count: 0,
+            insurance_expire_time: '2025-12-31',
+            inspection_expire_time: '2025-06-30',
+            accident_record: '无事故',
+            maintenance_record: '定期保养，记录完整'
+        };
+    },
+    
+    /**
+     * 渲染Mock门店列表
+     */
+    renderMockStoreList() {
+        const pageTitle = document.getElementById('page-title');
+        if (pageTitle) {
+            pageTitle.textContent = '门店管理';
+        }
+        return `
+            <div class="card">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 class="card-title">门店列表</h3>
+                    <button class="btn btn-primary" id="mock-create-store-btn">新增门店</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>门店编号</th>
+                                <th>门店名称</th>
+                                <th>联系电话</th>
+                                <th>地址</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>ST001</td>
+                                <td>北京朝阳店</td>
+                                <td>010-12345678</td>
+                                <td>北京市朝阳区xxx路xxx号</td>
+                                <td><span class="badge badge-success">启用</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-secondary">详情</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>ST002</td>
+                                <td>北京海淀店</td>
+                                <td>010-87654321</td>
+                                <td>北京市海淀区xxx路xxx号</td>
+                                <td><span class="badge badge-success">启用</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-secondary">详情</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    },
+    
+    /**
+     * 渲染Mock车源表单
+     */
+    renderMockCarForm() {
+        document.getElementById('page-title').textContent = '新增车源';
+        const mockData = this.getMockCarData();
+        return `
+            <div class="card">
+                <form id="car-form">
+                    <div class="detail-section">
+                        <h4 class="detail-section-title">基本信息</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>品牌 <span style="color: red;">*</span></label>
+                                <input type="text" name="brand" value="${mockData.brand}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>车型/车系 <span style="color: red;">*</span></label>
+                                <input type="text" name="series" value="${mockData.series}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>颜色 <span style="color: red;">*</span></label>
+                                <input type="text" name="color" value="${mockData.color}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>首次上牌时间 <span style="color: red;">*</span></label>
+                                <input type="date" name="first_register_time" value="${mockData.first_register_time}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>车架号(VIN) <span style="color: red;">*</span></label>
+                                <input type="text" name="vin" value="${mockData.vin}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>车牌号 <span style="color: red;">*</span></label>
+                                <input type="text" name="plate_number" value="${mockData.plate_number}" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <h4 class="detail-section-title">车况信息</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>公里数 <span style="color: red;">*</span></label>
+                                <input type="number" name="mileage" value="${mockData.mileage}" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label>收车价（元） <span style="color: red;">*</span></label>
+                                <input type="number" name="purchase_price" value="${mockData.purchase_price}" step="0.01" required>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>车况描述 <span style="color: red;">*</span></label>
+                                <textarea name="condition_description" required>${mockData.condition_description}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="btn-group" style="margin-top: 24px;">
+                        <button type="submit" class="btn btn-primary" id="mock-submit-btn">提交审核</button>
+                        <button type="button" class="btn btn-secondary" onclick="App.loadPage('car-list')">取消</button>
+                    </div>
+                </form>
+            </div>
+        `;
+    },
+    
+    /**
+     * 渲染Mock待审核车源
+     */
+    renderMockCarAudit() {
+        document.getElementById('page-title').textContent = '待审核车源';
+        return `
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">待审核车源</h3>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>车牌号</th>
+                                <th>品牌/车型</th>
+                                <th>收车价</th>
+                                <th>录入时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>京A12345</td>
+                                <td>奔驰 C200L</td>
+                                <td>¥280,000</td>
+                                <td>${new Date().toLocaleString('zh-CN')}</td>
+                                <td>
+                                    <button class="btn btn-secondary">查看详情</button>
+                                    <button class="btn btn-success">通过</button>
+                                    <button class="btn btn-danger">驳回</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    },
+    
+    /**
+     * 渲染Mock车源列表
+     */
+    renderMockCarList(action) {
+        document.getElementById('page-title').textContent = '车源管理';
+        const mockCars = [
+            {
+                id: 1,
+                plate_number: '京A12345',
+                brand: '奔驰',
+                series: 'C200L',
+                store_name: '北京朝阳店',
+                purchase_price: '280000',
+                mileage: '35000',
+                years: 4,
+                car_status: action === 'reserve' ? '已预定' : action === 'sell' ? '已售出' : '待出售',
+                stock_days: 15
+            }
+        ];
+        
+        let actionButtons = '';
+        if (action === 'authorize') {
+            actionButtons = '<button class="btn btn-sm btn-primary" onclick="App.showAuthorizeModal(1, 1)">授权</button>';
+        } else if (action === 'reserve') {
+            actionButtons = '<button class="btn btn-sm btn-outline" onclick="App.reserveCar(1)">预定</button>';
+        } else if (action === 'sell') {
+            actionButtons = '<button class="btn btn-sm btn-success" onclick="App.showSellModal(1, 1)">售卖</button>';
+        } else {
+            actionButtons = '<button class="btn btn-sm btn-secondary" onclick="App.showCarDetail(1)">详情</button>';
+        }
+        
+        return `
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">车源列表</h3>
+                    <button class="btn btn-primary">新增车源</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>车牌号</th>
+                                <th>品牌/车型</th>
+                                ${this.currentRole === 'headquarters_admin' ? '<th>收车门店</th>' : ''}
+                                <th>收车价</th>
+                                <th>公里数</th>
+                                <th>年限</th>
+                                <th>库存天数</th>
+                                <th>车源状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${mockCars.map(car => `
+                                <tr>
+                                    <td>${car.plate_number}</td>
+                                    <td>${car.brand} ${car.series}</td>
+                                    ${this.currentRole === 'headquarters_admin' ? `<td>${car.store_name}</td>` : ''}
+                                    <td style="color: var(--danger-color); font-weight: 600;">¥${parseFloat(car.purchase_price).toLocaleString()}</td>
+                                    <td>${parseFloat(car.mileage).toLocaleString()}公里</td>
+                                    <td>${car.years}年</td>
+                                    <td>${car.stock_days}天</td>
+                                    <td><span class="badge badge-info">${car.car_status}</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-secondary" onclick="App.showCarDetail(${car.id})">详情</button>
+                                        ${actionButtons}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    },
+    
+    /**
+     * 显示新手指引高亮
+     */
+    showOnboardingHighlight(pageName, action = null) {
+        // 移除旧的遮罩（如果有）
+        const oldOverlay = document.getElementById('onboarding-overlay');
+        if (oldOverlay) {
+            oldOverlay.remove();
+        }
+        
+        // 创建遮罩层（更亮的遮罩，透明度降低）
+        const overlay = document.createElement('div');
+        overlay.id = 'onboarding-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.15);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        
+        // 根据页面类型和操作类型显示不同的指引
+        let targetElement = null;
+        let message = '';
+        
+        switch (pageName) {
+            case 'store-list':
+                if (action === 'create-store') {
+                    // 查找新增门店按钮
+                    targetElement = document.querySelector('.card-header .btn-primary') || 
+                                   document.querySelector('.card-header button') ||
+                                   document.querySelector('button.btn-primary');
+                    message = '点击"新增门店"按钮可以创建新门店';
+                }
+                break;
+            case 'car-create':
+                if (action === 'create') {
+                    // 填充mock数据
+                    const form = document.querySelector('form#car-form');
+                    if (form) {
+                        const mockData = this.getMockCarData();
+                        Object.keys(mockData).forEach(key => {
+                            const input = form.querySelector(`[name="${key}"]`);
+                            if (input && !input.value) {
+                                input.value = mockData[key];
+                            }
+                        });
+                    }
+                    // 查找提交按钮，尝试多种选择器
+                    targetElement = document.querySelector('#mock-submit-btn') ||
+                                  document.querySelector('form#car-form button[type="submit"]') ||
+                                  document.querySelector('form#car-form .btn-primary') ||
+                                  document.querySelector('form#car-form button.btn-primary') ||
+                                  document.querySelector('form button[type="submit"]') ||
+                                  document.querySelector('.btn-group .btn-primary');
+                    message = '填写完车辆信息后，点击"提交审核"按钮提交';
+                }
+                break;
+            case 'car-audit':
+                if (action === 'audit') {
+                    // 如果有mock数据，先渲染
+                    targetElement = document.querySelector('table tbody tr:first-child .btn-success');
+                    if (!targetElement) {
+                        targetElement = document.querySelector('table tbody tr:first-child button');
+                    }
+                    message = '点击"通过"按钮审核通过车源，车源状态将变为"待出售"';
+                }
+                break;
+            case 'car-list':
+                if (action === 'authorize') {
+                    targetElement = document.querySelector('table tbody tr:first-child .btn-primary, table tbody tr:first-child button[onclick*="showAuthorizeModal"]');
+                    message = '点击"授权"按钮，可以将车源授权给其他门店';
+                } else if (action === 'reserve') {
+                    targetElement = document.querySelector('table tbody tr:first-child button[onclick*="reserveCar"], table tbody tr:first-child .btn-outline');
+                    message = '点击"预定"按钮可以预定车源，预定后只有预定方可以售卖';
+                } else if (action === 'sell') {
+                    targetElement = document.querySelector('table tbody tr:first-child button[onclick*="showSellModal"], table tbody tr:first-child .btn-success');
+                    message = '点击"售卖"按钮可以完成售出登记，车源状态将变为"已售出"';
+                } else {
+                    targetElement = document.querySelector('table tbody tr:first-child button[onclick*="showCarDetail"]');
+                    message = '点击"详情"按钮可以查看车源详细信息';
+                }
+                break;
+        }
+        
+        // 先添加遮罩到页面
+        document.body.appendChild(overlay);
+        
+        // 如果找不到目标元素，尝试多次查找
+        if (!targetElement) {
+            // 延迟查找，给页面更多渲染时间
+            setTimeout(() => {
+                switch (pageName) {
+                    case 'store-list':
+                        if (action === 'create-store') {
+                            targetElement = document.querySelector('#mock-create-store-btn') ||
+                                          document.querySelector('.card-header .btn-primary') ||
+                                          document.querySelector('.card-header button') ||
+                                          document.querySelector('button.btn-primary');
+                        }
+                        break;
+                    case 'car-create':
+                        if (action === 'create') {
+                            targetElement = document.querySelector('#mock-submit-btn') ||
+                                          document.querySelector('form#car-form button[type="submit"]') ||
+                                          document.querySelector('form#car-form .btn-primary') ||
+                                          document.querySelector('form#car-form button.btn-primary') ||
+                                          document.querySelector('form button[type="submit"]') ||
+                                          document.querySelector('.btn-group .btn-primary');
+                        }
+                        break;
+                    case 'car-audit':
+                        if (action === 'audit') {
+                            targetElement = document.querySelector('table tbody tr:first-child .btn-success') ||
+                                          document.querySelector('table tbody tr:first-child button');
+                        }
+                        break;
+                    case 'car-list':
+                        if (action === 'authorize') {
+                            targetElement = document.querySelector('table tbody tr:first-child .btn-primary') ||
+                                          document.querySelector('table tbody tr:first-child button[onclick*="showAuthorizeModal"]');
+                        } else if (action === 'reserve') {
+                            targetElement = document.querySelector('table tbody tr:first-child button[onclick*="reserveCar"]') ||
+                                          document.querySelector('table tbody tr:first-child .btn-outline');
+                        } else if (action === 'sell') {
+                            targetElement = document.querySelector('table tbody tr:first-child button[onclick*="showSellModal"]') ||
+                                          document.querySelector('table tbody tr:first-child .btn-success');
+                        }
+                        break;
+                }
+                
+                if (targetElement) {
+                    // 清空overlay内容，重新添加高亮
+                    overlay.innerHTML = '';
+                    overlay.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: rgba(0, 0, 0, 0.15);
+                        z-index: 9999;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    `;
+                    this.highlightElement(targetElement, message, overlay);
+                } else {
+                    // 如果还是找不到，显示通用提示
+                    this.showGenericTooltip(overlay, message);
+                }
+            }, 1000);
+        } else {
+            this.highlightElement(targetElement, message, overlay);
+        }
+        
+        // 添加脉冲动画
+        if (!document.getElementById('onboarding-style')) {
+            const style = document.createElement('style');
+            style.id = 'onboarding-style';
+            style.textContent = `
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.7; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    },
+    
+    /**
+     * 高亮元素
+     */
+    highlightElement(targetElement, message, overlay) {
+        const rect = targetElement.getBoundingClientRect();
+        const highlight = document.createElement('div');
+        highlight.style.cssText = `
+            position: fixed;
+            top: ${rect.top}px;
+            left: ${rect.left}px;
+            width: ${rect.width}px;
+            height: ${rect.height}px;
+            border: 3px solid var(--primary-color);
+            border-radius: 8px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.15), 0 0 20px rgba(59, 130, 246, 0.5);
+            z-index: 10000;
+            pointer-events: none;
+            animation: pulse 2s infinite;
+        `;
+        
+        // 添加提示框
+        const tooltip = document.createElement('div');
+        tooltip.className = 'onboarding-tooltip';
+        tooltip.style.cssText = `
+            position: fixed;
+            top: ${rect.bottom + 20}px;
+            left: ${Math.max(20, rect.left)}px;
+            background: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 10001;
+            max-width: 300px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text-primary);
+        `;
+        tooltip.innerHTML = `
+            <div style="margin-bottom: 12px; font-weight: 600; color: var(--primary-color);">💡 操作提示</div>
+            <div>${message}</div>
+        `;
+        
+        overlay.appendChild(highlight);
+        overlay.appendChild(tooltip);
+        overlay.onclick = (e) => {
+            if (e.target === overlay && !this.onboardingStep) {
+                this.closeOnboarding();
+            }
+        };
+    },
+    
+    /**
+     * 显示通用提示
+     */
+    showGenericTooltip(overlay, message) {
+        overlay.innerHTML = '';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.15);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        overlay.innerHTML = `
+            <div style="background: white; padding: 24px; border-radius: 8px; max-width: 400px; text-align: center;">
+                <div style="font-size: 18px; font-weight: 600; margin-bottom: 12px; color: var(--primary-color);">📖 新手指引</div>
+                <div style="margin-bottom: 20px; line-height: 1.6; color: var(--text-primary);">${message || '请查看页面中的相关功能按钮和操作区域'}</div>
+                <button onclick="App.closeOnboarding()" style="padding: 10px 24px; background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer;">我知道了</button>
+            </div>
+        `;
+    },
+    
+    /**
+     * 关闭新手指引
+     */
+    closeOnboarding() {
+        const overlay = document.getElementById('onboarding-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+        this.onboardingStep = null;
+        this.onboardingSteps = null;
     },
     
     /** 计算库存天数（购买至今或售出时间） */
@@ -417,48 +1390,67 @@ const App = {
     async renderCarList(page = 1) {
         document.getElementById('page-title').textContent = '车源管理';
         
+        // 初始化排序状态（如果未设置）
+        if (this.carListSortField === undefined) {
+            this.carListSortField = '';
+            this.carListSortOrder = '';
+        }
+        
         // 在重新渲染前，保存当前筛选条件的值（如果元素存在）
         const savedFilterType = document.getElementById('car-filter-type')?.value;
         const savedKeyword = document.getElementById('car-keyword')?.value || '';
         const savedBrand = document.getElementById('car-brand')?.value || '';
-        const savedCarStatus = document.getElementById('car-status')?.value || '';
-        const savedAuditStatus = document.getElementById('car-audit-status')?.value || '';
+        // 读取多选状态（默认仅勾选待出售）
+        const statusAllChecked = document.getElementById('status-all')?.checked;
+        const statusSaleChecked = document.getElementById('status-sale')?.checked;
+        const statusReservedChecked = document.getElementById('status-reserved')?.checked;
+        const statusSoldChecked = document.getElementById('status-sold')?.checked;
         const savedStoreId = document.getElementById('car-store-id')?.value || '';
-        const hasUserSelectedAuditStatus = document.getElementById('car-audit-status')?.hasAttribute('data-user-selected');
         
         // 获取筛选条件（优先使用保存的值，否则使用默认值）
         const filterType = savedFilterType || (this.currentRole === 'store_admin' ? 'all' : 'store');
         const keyword = savedKeyword;
         const brand = savedBrand;
-        const carStatus = savedCarStatus;
-        
-        // 审核状态处理：如果用户已经选择过，使用用户选择的值；否则首次加载时总部默认"审核通过"
-        let auditStatus = '';
-        if (hasUserSelectedAuditStatus || savedAuditStatus) {
-            // 用户已经手动选择过，使用用户选择的值（包括空字符串"全部"）
-            auditStatus = savedAuditStatus;
+        // 组装 car_statuses（若全选则为空代表全部；若都未选则默认待出售）
+        let carStatuses = [];
+        if (statusAllChecked) {
+            carStatuses = [];
         } else {
-            // 首次加载时，如果是总部管理员，默认使用"审核通过"
-            auditStatus = this.currentRole === 'headquarters_admin' ? '审核通过' : '';
+            if (statusSaleChecked) carStatuses.push('待出售');
+            if (statusReservedChecked) carStatuses.push('已预定');
+            if (statusSoldChecked) carStatuses.push('已售出');
+            if (carStatuses.length === 0) {
+                carStatuses = ['待出售'];
+            }
         }
+        
+        // 审核状态移除：采用新四态，不再使用审核筛选
         
         const storeId = savedStoreId;
         
+        // 获取排序参数
+        const sortField = this.carListSortField || '';
+        const sortOrder = this.carListSortOrder || '';
+        
         const params = {
             page: page,
-            limit: 20,
+            limit: 15,
             filter_type: filterType,
             keyword: keyword,
             brand: brand,
-            car_status: carStatus,
-            audit_status: auditStatus,
-            store_id: storeId
+            car_statuses: carStatuses,
+            store_id: storeId,
+            sort_field: sortField,
+            sort_order: sortOrder
         };
         
         const result = await Car.getList(params);
-        const cars = result.data.list;
-        const total = result.data.total;
-        const totalPages = Math.ceil(total / 20);
+        const cars = result.data.list || [];
+        const pagination = result.data.pagination || {};
+        const total = pagination.total ?? result.data.total ?? cars.length;
+        const limit = pagination.limit ?? params.limit ?? 15;
+        const currentPage = pagination.page ?? page;
+        const totalPages = pagination.pages ?? Math.max(1, Math.ceil(total / limit));
         
         const html = `
             <div class="card">
@@ -501,43 +1493,40 @@ const App = {
                     </div>
                     <div class="filter-item">
                         <label>车源状态：</label>
-                        <select id="car-status" class="filter-select" onchange="App.renderCarList(1)">
-                            <option value="" ${carStatus === '' ? 'selected' : ''}>全部</option>
-                            <option value="收钥匙" ${carStatus === '收钥匙' ? 'selected' : ''}>收钥匙</option>
-                            <option value="已过户" ${carStatus === '已过户' ? 'selected' : ''}>已过户</option>
-                            <option value="已订" ${carStatus === '已订' ? 'selected' : ''}>已订</option>
-                            <option value="已售出" ${carStatus === '已售出' ? 'selected' : ''}>已售出</option>
-                        </select>
+                        <div id="car-status-group" class="checkbox-group">
+                            <label class="checkbox-inline">
+                                <input type="checkbox" id="status-all" onchange="(function(){ const on=this.checked; document.querySelectorAll('#car-status-group input[type=checkbox]').forEach(cb=>{ if(cb.id!=='status-all') cb.checked=false; }); if(!on){ document.getElementById('status-sale').checked=true; } App.renderCarList(1); }).call(this)"> 全部
+                            </label>
+                            <label class="checkbox-inline">
+                                <input type="checkbox" id="status-sale" onchange="document.getElementById('status-all').checked=false; App.renderCarList(1)"> 待出售
+                            </label>
+                            <label class="checkbox-inline">
+                                <input type="checkbox" id="status-reserved" onchange="document.getElementById('status-all').checked=false; App.renderCarList(1)"> 已预定
+                            </label>
+                            <label class="checkbox-inline">
+                                <input type="checkbox" id="status-sold" onchange="document.getElementById('status-all').checked=false; App.renderCarList(1)"> 已售出
+                            </label>
+                        </div>
                     </div>
-                    <div class="filter-item">
-                        <label>审核状态：</label>
-                        <select id="car-audit-status" class="filter-select" onchange="document.getElementById('car-audit-status').setAttribute('data-user-selected', 'true'); App.renderCarList(1)">
-                            <option value="" ${auditStatus === '' ? 'selected' : ''}>全部</option>
-                            <option value="待审核" ${auditStatus === '待审核' ? 'selected' : ''}>待审核</option>
-                            <option value="审核通过" ${auditStatus === '审核通过' ? 'selected' : ''}>审核通过</option>
-                            <option value="审核驳回" ${auditStatus === '审核驳回' ? 'selected' : ''}>审核驳回</option>
-                        </select>
+                    <div class="filter-item filter-search">
+                        <button class="btn btn-primary" onclick="App.renderCarList(1)">
+                            <i class="fas fa-search"></i> 搜索
+                        </button>
                     </div>
-                       <div class="filter-item">
-                           <button class="btn btn-primary" onclick="App.renderCarList(1)">
-                               <i class="fas fa-search"></i> 搜索
-                           </button>
-                       </div>
                 </div>
                 
                 <div class="table-container">
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th style="min-width: 100px;">车牌号</th>
-                                <th style="min-width: 150px;">品牌/车型</th>
-                                ${this.currentRole === 'headquarters_admin' ? '<th style="min-width: 120px;">收车门店</th>' : ''}
-                                <th style="min-width: 100px;">收车价</th>
-                                <th style="min-width: 80px;">公里数</th>
-                                <th style="min-width: 80px;">年限</th>
-                                <th style="min-width: 100px;">库存天数</th>
-                                <th style="min-width: 100px;">车源状态</th>
-                                <th style="min-width: 100px;">审核状态</th>
+                                ${this.renderSortableHeader('plate_number', '车牌号', 100)}
+                                ${this.renderSortableHeader('brand', '品牌/车型', 150)}
+                                ${this.currentRole === 'headquarters_admin' ? this.renderSortableHeader('store_name', '收车门店', 120) : ''}
+                                ${this.renderSortableHeader('purchase_price', '收车价', 100)}
+                                ${this.renderSortableHeader('mileage', '公里数', 80)}
+                                ${this.renderSortableHeader('years', '年限', 80)}
+                                ${this.renderSortableHeader('purchase_time', '库存天数', 100)}
+                                ${this.renderSortableHeader('car_status', '车源状态', 100)}
                                 ${this.currentRole === 'store_admin' ? '<th style="min-width: 80px;">来源</th>' : ''}
                                 <th style="min-width: 150px;">操作</th>
                             </tr>
@@ -554,9 +1543,22 @@ const App = {
                                 </tr>
                             ` :
                             cars.map(car => {
-                                const canSell = (car.audit_status === '审核通过' && car.car_status !== '已售出' && (
-                                    this.currentRole === 'headquarters_admin' || (this.currentRole === 'store_admin')
-                                ));
+                                const isOwner = parseInt(car.store_id) === parseInt(this.currentUser?.store_id || -1);
+                                const isAuthorized = car.is_authorized || false;
+                                const canSee = (this.currentRole === 'headquarters_admin') || isOwner || isAuthorized;
+                                
+                                // 待出售：本店收车和被授权车源都能预定和出售
+                                const canReserve = canSee && car.car_status === '待出售';
+                                const canSellWhenAvailable = canSee && car.car_status === '待出售';
+                                
+                                // 已预定：本店预定的可以出售，非本店预定不可出售
+                                const isReservedByMe = car.car_status === '已预定' && parseInt(car.reserved_store_id || -1) === parseInt(this.currentUser?.store_id || -2);
+                                const canSellWhenReserved = isReservedByMe;
+                                const canUnreserve = isReservedByMe;
+                                
+                                // 授权：仅本店收车可授权，他店授权过来的无授权功能，待上架状态不可授权
+                                const canAuthorize = (this.currentRole === 'headquarters_admin' || isOwner) && !isAuthorized && car.car_status !== '已售出' && car.car_status !== '待上架';
+                                
                                 return `
                                 <tr>
                                     <div style="display:none"></div>
@@ -568,19 +1570,26 @@ const App = {
                                     <td class="text-nowrap">${car.years || 0}年</td>
                                     <td class="text-nowrap">${this.calcStockDays(car.purchase_time, car.sold_time)}</td>
                                     <td class="text-nowrap"><span class="badge badge-info">${car.car_status || '-'}</span></td>
-                                    <td class="text-nowrap"><span class="${car.audit_status === '审核通过' ? 'badge badge-success' : (car.audit_status === '审核驳回' ? 'badge badge-danger' : 'badge badge-warning')}">${car.audit_status || '-'}</span></td>
-                                    ${this.currentRole === 'store_admin' ? `<td class="text-nowrap">${car.is_authorized ? '<span class="badge badge-warning">他店</span>' : '<span class="badge badge-info">本店</span>'}</td>` : ''}
+                                    ${this.currentRole === 'store_admin' ? `<td class="text-nowrap">${isAuthorized ? '<span class="badge badge-warning">他店</span>' : '<span class="badge badge-info">本店</span>'}</td>` : ''}
                                     <td class="text-nowrap">
-                                        <button class="btn btn-sm btn-secondary" onclick="App.showCarDetail(${car.id})">详情</button>
-                                        ${this.currentRole === 'store_input' && (car.audit_status === '待审核' || car.audit_status === '审核驳回') ? `
-                                            <button class="btn btn-sm btn-warning" onclick="App.showEditCarForm(${car.id})">编辑</button>
+                                        <button class="btn btn-xs btn-secondary" onclick="App.showCarDetail(${car.id})">详情</button>
+                                        ${this.currentRole === 'store_input' && car.car_status === '待上架' ? `
+                                            <button class="btn btn-xs btn-warning" onclick="App.showEditCarForm(${car.id})">编辑</button>
                                         ` : ''}
-                                        ${this.currentRole === 'headquarters_admin' && car.audit_status === '审核通过' && car.car_status !== '已售出' ? `
-                                            <button class="btn btn-sm btn-primary" onclick="App.showAuthorizeModal(${car.id}, ${car.store_id})">授权</button>
-                                            <button class="btn btn-sm btn-success" onclick="App.showSellModal(${car.id}, ${car.store_id || 0})">售卖</button>
+                                        ${this.currentRole === 'headquarters_admin' && canSee && car.car_status !== '已售出' ? `
+                                            ${canAuthorize ? `<button class="btn btn-xs btn-primary" onclick="App.showAuthorizeModal(${car.id}, ${car.store_id})">授权</button>` : ''}
+                                            ${car.car_status === '待上架' ? `<button class="btn btn-xs btn-warning" onclick="App.publishCar(${car.id})">上架</button>` : ''}
+                                            ${canReserve ? `<button class="btn btn-xs btn-outline" onclick="App.reserveCar(${car.id})">预定</button>` : ''}
+                                            ${canSellWhenAvailable ? `<button class="btn btn-xs btn-success" onclick="App.showSellModal(${car.id}, ${car.store_id || 0})">售卖</button>` : ''}
+                                            ${canSellWhenReserved ? `<button class="btn btn-xs btn-success" onclick="App.showSellModal(${car.id}, ${car.store_id || 0})">售卖</button>` : ''}
                                         ` : ''}
-                                        ${this.currentRole === 'store_admin' && car.audit_status === '审核通过' && (parseInt(car.store_id) === parseInt(this.currentUser?.store_id) || car.is_authorized) && car.car_status !== '已售出' ? `
-                                            <button class="btn btn-sm btn-success" onclick="App.showSellModal(${car.id}, ${this.currentUser?.store_id || 0})">售卖</button>
+                                        ${this.currentRole === 'store_admin' && canSee && car.car_status !== '已售出' ? `
+                                            ${car.car_status === '待上架' && isOwner ? `<button class="btn btn-xs btn-warning" onclick="App.publishCar(${car.id})">上架</button>` : ''}
+                                            ${canReserve ? `<button class="btn btn-xs btn-outline" onclick="App.reserveCar(${car.id})">预定</button>` : ''}
+                                            ${canSellWhenAvailable ? `<button class="btn btn-xs btn-success" onclick="App.showSellModal(${car.id}, ${this.currentUser?.store_id || 0})">售卖</button>` : ''}
+                                            ${canUnreserve ? `<button class="btn btn-xs btn-secondary" onclick="App.unreserveCar(${car.id})">取消预定</button>` : ''}
+                                            ${canSellWhenReserved ? `<button class="btn btn-xs btn-success" onclick="App.showSellModal(${car.id}, ${this.currentUser?.store_id || 0})">售卖</button>` : ''}
+                                            ${car.car_status === '已预定' && !isReservedByMe ? `<span class="badge badge-warning">已被他店预定</span>` : ''}
                                         ` : ''}
                                     </td>
                                 </tr>`;}).join('')}
@@ -590,24 +1599,24 @@ const App = {
                 
                 <!-- 分页组件 -->
                 ${totalPages > 1 ? `
-                    <div class="pagination">
-                        <button class="btn btn-sm ${page <= 1 ? 'btn-disabled' : 'btn-secondary'}" 
-                                onclick="${page > 1 ? `App.renderCarList(${page - 1})` : ''}" 
-                                ${page <= 1 ? 'disabled' : ''}>
+                    <div class="pagination" style="display: flex; align-items: center; justify-content: center; gap: 16px; padding: 20px 0;">
+                        <button class="btn btn-sm ${currentPage <= 1 ? 'btn-disabled' : 'btn-secondary'}" 
+                                onclick="${currentPage > 1 ? `App.renderCarList(${currentPage - 1})` : ''}" 
+                                ${currentPage <= 1 ? 'disabled' : ''}>
                             <i class="fas fa-chevron-left"></i> 上一页
                         </button>
-                        <span class="pagination-info">
-                            第 ${page} / ${totalPages} 页，共 ${total} 条
+                        <span class="pagination-info" style="font-size: 14px; color: var(--text-primary);">
+                            第 <strong>${currentPage}</strong> / <strong>${totalPages}</strong> 页，共 <strong>${total}</strong> 条
                         </span>
-                        <button class="btn btn-sm ${page >= totalPages ? 'btn-disabled' : 'btn-secondary'}" 
-                                onclick="${page < totalPages ? `App.renderCarList(${page + 1})` : ''}" 
-                                ${page >= totalPages ? 'disabled' : ''}>
+                        <button class="btn btn-sm ${currentPage >= totalPages ? 'btn-disabled' : 'btn-secondary'}" 
+                                onclick="${currentPage < totalPages ? `App.renderCarList(${currentPage + 1})` : ''}" 
+                                ${currentPage >= totalPages ? 'disabled' : ''}>
                             下一页 <i class="fas fa-chevron-right"></i>
                         </button>
                     </div>
                 ` : total > 0 ? `
-                    <div class="pagination">
-                        <span class="pagination-info">共 ${total} 条数据</span>
+                    <div class="pagination" style="display: flex; align-items: center; justify-content: center; padding: 20px 0;">
+                        <span class="pagination-info" style="font-size: 14px; color: var(--text-primary);">共 <strong>${total}</strong> 条数据</span>
                     </div>
                 ` : ''}
             </div>
@@ -624,17 +1633,34 @@ const App = {
         if (document.getElementById('car-filter-type')) {
             document.getElementById('car-filter-type').value = filterType;
         }
-        if (document.getElementById('car-status')) {
-            document.getElementById('car-status').value = carStatus;
-        }
-        if (document.getElementById('car-audit-status')) {
-            const auditStatusSelect = document.getElementById('car-audit-status');
-            auditStatusSelect.value = auditStatus;
-            // 如果用户已经选择过，或者当前有值，标记为用户已选择（避免首次加载时被覆盖）
-            if (hasUserSelectedAuditStatus || auditStatus) {
-                auditStatusSelect.setAttribute('data-user-selected', 'true');
+        // 设置状态多选框默认：仅勾选待出售（若用户无选择）
+        const g = document.getElementById('car-status-group');
+        if (g) {
+            const all = document.getElementById('status-all');
+            const sale = document.getElementById('status-sale');
+            const reserved = document.getElementById('status-reserved');
+            const sold = document.getElementById('status-sold');
+            // 先清空
+            if (all) all.checked = false;
+            if (sale) sale.checked = false;
+            if (reserved) reserved.checked = false;
+            if (sold) sold.checked = false;
+            // 根据当前 carStatuses 回填
+            const cur = (carStatuses || []);
+            if (cur.length === 0) {
+                // 全部
+                if (all) all.checked = true;
+            } else {
+                if (cur.includes('待出售') && sale) sale.checked = true;
+                if (cur.includes('已预定') && reserved) reserved.checked = true;
+                if (cur.includes('已售出') && sold) sold.checked = true;
+                // 如果都未选中，按默认仅待出售
+                if (!sale.checked && !reserved.checked && !sold.checked) {
+                    sale.checked = true;
+                }
             }
         }
+        // 移除审核筛选的值设置逻辑
         if (document.getElementById('car-store-id')) {
             document.getElementById('car-store-id').value = storeId;
         }
@@ -644,6 +1670,66 @@ const App = {
         if (searchBtn) {
             searchBtn.onclick = () => App.renderCarList(1);
         }
+    },
+    
+    /**
+     * 渲染可排序的表头
+     */
+    renderSortableHeader(field, label, minWidth) {
+        const currentField = this.carListSortField || '';
+        const currentOrder = this.carListSortOrder || '';
+        const isActive = currentField === field;
+        const isAsc = isActive && currentOrder === 'asc';
+        const isDesc = isActive && currentOrder === 'desc';
+        
+        let icon = '';
+        if (isAsc) {
+            icon = '<i class="fas fa-sort-up" style="margin-left: 4px; color: var(--primary-color);"></i>';
+        } else if (isDesc) {
+            icon = '<i class="fas fa-sort-down" style="margin-left: 4px; color: var(--primary-color);"></i>';
+        } else {
+            icon = '<i class="fas fa-sort" style="margin-left: 4px; color: var(--text-secondary); opacity: 0.5;"></i>';
+        }
+        
+        return `
+            <th style="min-width: ${minWidth}px; cursor: pointer; user-select: none;" 
+                onclick="App.handleSort('${field}')"
+                onmouseover="this.style.backgroundColor='var(--bg-secondary)'"
+                onmouseout="this.style.backgroundColor=''">
+                ${label}${icon}
+            </th>
+        `;
+    },
+    
+    /**
+     * 处理排序
+     */
+    handleSort(field) {
+        const currentField = this.carListSortField || '';
+        const currentOrder = this.carListSortOrder || '';
+        
+        if (currentField === field) {
+            // 如果点击的是当前排序字段，切换排序顺序
+            if (currentOrder === 'asc') {
+                this.carListSortField = field;
+                this.carListSortOrder = 'desc';
+            } else if (currentOrder === 'desc') {
+                // 取消排序
+                this.carListSortField = '';
+                this.carListSortOrder = '';
+            } else {
+                // 默认升序
+                this.carListSortField = field;
+                this.carListSortOrder = 'asc';
+            }
+        } else {
+            // 新字段，默认升序
+            this.carListSortField = field;
+            this.carListSortOrder = 'asc';
+        }
+        
+        // 重新渲染列表（回到第一页）
+        this.renderCarList(1);
     },
     
     /**
@@ -692,117 +1778,134 @@ const App = {
         const html = `
             <div class="card">
                 <form id="car-form">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>品牌 <span style="color: red;">*</span></label>
-                            <input type="text" name="brand" value="${car ? car.brand : ''}" required>
+                    <!-- 基本信息 -->
+                    <div class="detail-section">
+                        <h4 class="detail-section-title">基本信息</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>品牌 <span style="color: red;">*</span></label>
+                                <input type="text" name="brand" value="${car ? car.brand : ''}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>车型/车系 <span style="color: red;">*</span></label>
+                                <input type="text" name="series" value="${car ? car.series : ''}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>颜色 <span style="color: red;">*</span></label>
+                                <input type="text" name="color" value="${car ? car.color : ''}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>首次上牌时间 <span style="color: red;">*</span></label>
+                                <input type="date" name="first_register_time" value="${car ? car.first_register_time : ''}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>车架号(VIN) <span style="color: red;">*</span></label>
+                                <input type="text" name="vin" value="${car ? car.vin : ''}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>车牌号 <span style="color: red;">*</span></label>
+                                <input type="text" name="plate_number" value="${car ? car.plate_number : ''}" required>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>车型/车系 <span style="color: red;">*</span></label>
-                            <input type="text" name="series" value="${car ? car.series : ''}" required>
+                    </div>
+                    
+                    <!-- 车辆参数 -->
+                    <div class="detail-section">
+                        <h4 class="detail-section-title">车辆参数</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>排量（L）</label>
+                                <input type="text" name="displacement" value="${car ? car.displacement : ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>变速箱类型</label>
+                                <select name="transmission">
+                                    <option value="">请选择</option>
+                                    <option value="手动" ${car && car.transmission === '手动' ? 'selected' : ''}>手动</option>
+                                    <option value="自动" ${car && car.transmission === '自动' ? 'selected' : ''}>自动</option>
+                                    <option value="手自一体" ${car && car.transmission === '手自一体' ? 'selected' : ''}>手自一体</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>燃料类型</label>
+                                <select name="fuel_type">
+                                    <option value="">请选择</option>
+                                    <option value="汽油" ${car && car.fuel_type === '汽油' ? 'selected' : ''}>汽油</option>
+                                    <option value="柴油" ${car && car.fuel_type === '柴油' ? 'selected' : ''}>柴油</option>
+                                    <option value="混动" ${car && car.fuel_type === '混动' ? 'selected' : ''}>混动</option>
+                                    <option value="电动" ${car && car.fuel_type === '电动' ? 'selected' : ''}>电动</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>排放标准</label>
+                                <select name="emission_standard">
+                                    <option value="">请选择</option>
+                                    <option value="国四" ${car && car.emission_standard === '国四' ? 'selected' : ''}>国四</option>
+                                    <option value="国五" ${car && car.emission_standard === '国五' ? 'selected' : ''}>国五</option>
+                                    <option value="国六" ${car && car.emission_standard === '国六' ? 'selected' : ''}>国六</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>过户次数</label>
+                                <input type="number" name="transfer_count" value="${car ? car.transfer_count : 0}" min="0">
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>车辆型号</label>
-                            <input type="text" name="model" value="${car ? car.model : ''}">
+                    </div>
+                    
+                    <!-- 车况信息 -->
+                    <div class="detail-section">
+                        <h4 class="detail-section-title">车况信息</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>公里数 <span style="color: red;">*</span></label>
+                                <input type="number" name="mileage" value="${car ? car.mileage : ''}" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label>保险到期时间</label>
+                                <input type="date" name="insurance_expire_time" value="${car && car.insurance_expire_time ? car.insurance_expire_time : ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>年检到期时间</label>
+                                <input type="date" name="inspection_expire_time" value="${car && car.inspection_expire_time ? car.inspection_expire_time : ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>事故记录</label>
+                                <select name="accident_record">
+                                    <option value="">请选择</option>
+                                    <option value="无事故" ${car && car.accident_record === '无事故' ? 'selected' : ''}>无事故</option>
+                                    <option value="轻微事故" ${car && car.accident_record === '轻微事故' ? 'selected' : ''}>轻微事故</option>
+                                    <option value="重大事故" ${car && car.accident_record === '重大事故' ? 'selected' : ''}>重大事故</option>
+                                </select>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>车况描述 <span style="color: red;">*</span></label>
+                                <textarea name="condition_description" required>${car ? car.condition_description : ''}</textarea>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>维修记录</label>
+                                <textarea name="maintenance_record">${car ? car.maintenance_record : ''}</textarea>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>备注</label>
+                                <textarea name="remark">${car ? car.remark : ''}</textarea>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>颜色 <span style="color: red;">*</span></label>
-                            <input type="text" name="color" value="${car ? car.color : ''}" required>
+                    </div>
+                    
+                    <!-- 收车信息 -->
+                    <div class="detail-section">
+                        <h4 class="detail-section-title">收车信息</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>收车价（元） <span style="color: red;">*</span></label>
+                                <input type="number" name="purchase_price" value="${car ? car.purchase_price : ''}" step="0.01" required>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>首次上牌时间 <span style="color: red;">*</span></label>
-                            <input type="date" name="first_register_time" value="${car ? car.first_register_time : ''}" required>
-                        </div>
-                        <div class="form-group">
-                            <label>车架号 <span style="color: red;">*</span></label>
-                            <input type="text" name="vin" value="${car ? car.vin : ''}" required>
-                        </div>
-                        <div class="form-group">
-                            <label>车牌号 <span style="color: red;">*</span></label>
-                            <input type="text" name="plate_number" value="${car ? car.plate_number : ''}" required>
-                        </div>
-                        <div class="form-group">
-                            <label>公里数 <span style="color: red;">*</span></label>
-                            <input type="number" name="mileage" value="${car ? car.mileage : ''}" step="0.01" required>
-                        </div>
-                        <div class="form-group">
-                            <label>收车价（元） <span style="color: red;">*</span></label>
-                            <input type="number" name="purchase_price" value="${car ? car.purchase_price : ''}" step="0.01" required>
-                        </div>
-                        <div class="form-group">
-                            <label>车源状态 <span style="color: red;">*</span></label>
-                            <select name="car_status" required>
-                                <option value="收钥匙" ${car && car.car_status === '收钥匙' ? 'selected' : ''}>收钥匙</option>
-                                <option value="已过户" ${car && car.car_status === '已过户' ? 'selected' : ''}>已过户</option>
-                                <option value="已订" ${car && car.car_status === '已订' ? 'selected' : ''}>已订</option>
-                                <option value="已售出" ${car && car.car_status === '已售出' ? 'selected' : ''}>已售出</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>排量（L）</label>
-                            <input type="text" name="displacement" value="${car ? car.displacement : ''}">
-                        </div>
-                        <div class="form-group">
-                            <label>变速箱类型</label>
-                            <select name="transmission">
-                                <option value="">请选择</option>
-                                <option value="手动" ${car && car.transmission === '手动' ? 'selected' : ''}>手动</option>
-                                <option value="自动" ${car && car.transmission === '自动' ? 'selected' : ''}>自动</option>
-                                <option value="手自一体" ${car && car.transmission === '手自一体' ? 'selected' : ''}>手自一体</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>燃料类型</label>
-                            <select name="fuel_type">
-                                <option value="">请选择</option>
-                                <option value="汽油" ${car && car.fuel_type === '汽油' ? 'selected' : ''}>汽油</option>
-                                <option value="柴油" ${car && car.fuel_type === '柴油' ? 'selected' : ''}>柴油</option>
-                                <option value="混动" ${car && car.fuel_type === '混动' ? 'selected' : ''}>混动</option>
-                                <option value="电动" ${car && car.fuel_type === '电动' ? 'selected' : ''}>电动</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>排放标准</label>
-                            <select name="emission_standard">
-                                <option value="">请选择</option>
-                                <option value="国四" ${car && car.emission_standard === '国四' ? 'selected' : ''}>国四</option>
-                                <option value="国五" ${car && car.emission_standard === '国五' ? 'selected' : ''}>国五</option>
-                                <option value="国六" ${car && car.emission_standard === '国六' ? 'selected' : ''}>国六</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>过户次数</label>
-                            <input type="number" name="transfer_count" value="${car ? car.transfer_count : 0}" min="0">
-                        </div>
-                        <div class="form-group">
-                            <label>保险到期时间</label>
-                            <input type="date" name="insurance_expire_time" value="${car && car.insurance_expire_time ? car.insurance_expire_time : ''}">
-                        </div>
-                        <div class="form-group">
-                            <label>年检到期时间</label>
-                            <input type="date" name="inspection_expire_time" value="${car && car.inspection_expire_time ? car.inspection_expire_time : ''}">
-                        </div>
-                        <div class="form-group">
-                            <label>事故记录</label>
-                            <select name="accident_record">
-                                <option value="">请选择</option>
-                                <option value="无事故" ${car && car.accident_record === '无事故' ? 'selected' : ''}>无事故</option>
-                                <option value="轻微事故" ${car && car.accident_record === '轻微事故' ? 'selected' : ''}>轻微事故</option>
-                                <option value="重大事故" ${car && car.accident_record === '重大事故' ? 'selected' : ''}>重大事故</option>
-                            </select>
-                        </div>
-                        <div class="form-group full-width">
-                            <label>车况描述 <span style="color: red;">*</span></label>
-                            <textarea name="condition_description" required>${car ? car.condition_description : ''}</textarea>
-                        </div>
-                        <div class="form-group full-width">
-                            <label>维修记录</label>
-                            <textarea name="maintenance_record">${car ? car.maintenance_record : ''}</textarea>
-                        </div>
-                        <div class="form-group full-width">
-                            <label>备注</label>
-                            <textarea name="remark">${car ? car.remark : ''}</textarea>
-                        </div>
+                    </div>
+                    
+                    <!-- 照片 -->
+                    <div class="detail-section">
+                        <h4 class="detail-section-title">车辆照片</h4>
                         <div class="form-group full-width">
                             <label>车辆照片 <span style="color: red;">*</span>（至少3张）</label>
                             <div class="image-upload" id="car-images-upload">
@@ -834,6 +1937,7 @@ const App = {
                             <input type="file" id="greenbook-image-input" multiple accept="image/*" style="display: none;" onchange="App.handleImageUpload(this, 'green_book')">
                         </div>
                     </div>
+                    
                     <div class="btn-group" style="margin-top: 24px;">
                         <button type="submit" class="btn btn-primary">${carId ? '更新' : '提交审核'}</button>
                         <button type="button" class="btn btn-secondary" onclick="App.loadPage('car-list')">取消</button>
@@ -924,8 +2028,9 @@ const App = {
      * 显示车源详情
      */
     async showCarDetail(id) {
-        const result = await Car.getDetail(id);
-        const car = result.data;
+        try {
+            const result = await Car.getDetail(id);
+            const car = result.data;
         
         const formatDate = (dateStr) => {
             if (!dateStr) return '-';
@@ -936,7 +2041,7 @@ const App = {
             return price ? `¥${parseFloat(price).toLocaleString()}` : '-';
         };
         
-        const modal = this.createModal('车源详情', `
+            const modal = this.createModal('车源详情', `
             <div style="max-height: 75vh; overflow-y: auto; padding: 8px;">
                 <div class="detail-section">
                     <h4 class="detail-section-title">基本信息</h4>
@@ -952,10 +2057,6 @@ const App = {
                         <div class="detail-item">
                             <span class="detail-label">车型/车系：</span>
                             <span class="detail-value">${car.series || '-'}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">车辆型号：</span>
-                            <span class="detail-value">${car.model || '-'}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">颜色：</span>
@@ -1051,22 +2152,26 @@ const App = {
                             <span class="detail-label">车源状态：</span>
                             <span class="detail-value"><span class="badge badge-info">${car.car_status || '-'}</span></span>
                         </div>
-                        <div class="detail-item">
-                            <span class="detail-label">审核状态：</span>
-                            <span class="detail-value"><span class="badge ${car.audit_status === '审核通过' ? 'badge-success' : car.audit_status === '审核驳回' ? 'badge-danger' : 'badge-warning'}">${car.audit_status || '-'}</span></span>
-                        </div>
-                        ${car.audit_user_id ? `
+                        ${car.car_status === '已预定' ? `
                             <div class="detail-item">
-                                <span class="detail-label">审核时间：</span>
-                                <span class="detail-value">${car.audit_time ? new Date(car.audit_time * 1000).toLocaleString('zh-CN') : '-'}</span>
+                                <span class="detail-label">预定门店：</span>
+                                <span class="detail-value">${parseInt(car.reserved_store_id||0)===0 ? '总部' : (car.reserved_store_name || car.reserved_store_id || '-')}</span>
                             </div>
-                        ` : ''}
-                        ${car.audit_remark ? `
-                            <div class="detail-item full-width">
-                                <span class="detail-label">审核意见：</span>
-                                <span class="detail-value">${car.audit_remark}</span>
+                            <div class="detail-item">
+                                <span class="detail-label">预定时间：</span>
+                                <span class="detail-value">${car.reserved_time ? new Date(car.reserved_time * 1000).toLocaleString('zh-CN') : '-'}</span>
                             </div>
-                        ` : ''}
+                        ` : ``}
+                        ${car.car_status === '已售出' ? `
+                            <div class="detail-item">
+                                <span class="detail-label">售出门店：</span>
+                                <span class="detail-value">${parseInt(car.sold_store_id||0)===0 ? '总部' : (car.sold_store_name || car.sold_store_id || '-')}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">售出时间：</span>
+                                <span class="detail-value">${car.sold_time ? new Date(car.sold_time * 1000).toLocaleString('zh-CN') : '-'}</span>
+                            </div>
+                        ` : ``}
                     </div>
                 </div>
                 
@@ -1127,20 +2232,55 @@ const App = {
                     <div class="detail-text">库存天数：<strong>${this.calcStockDays(car.purchase_time, car.sold_time)}</strong></div>
                 </div>
                 
-                ${((this.currentRole === 'headquarters_admin') && car.audit_status === '审核通过' && car.car_status !== '已售出') ? `
-                    <div class="detail-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
-                        <button class="btn btn-primary" onclick="App.showAuthorizeModal(${car.id}, ${car.store_id})">授权</button>
-                        <button class="btn btn-success" style="margin-left: 8px;" onclick="App.showSellModal(${car.id}, ${car.store_id || 0})">售卖</button>
-                    </div>
-                ` : ''}
-                
-                ${((this.currentRole === 'store_admin') && car.audit_status === '审核通过' && car.car_status !== '已售出') ? `
-                    <div class="detail-section" style="margin-top: 12px;">
-                        <button class="btn btn-success" onclick="App.showSellModal(${car.id}, ${this.currentUser?.store_id || 0})">售卖</button>
-                    </div>
-                ` : ''}
+                ${(() => {
+                    const isOwner = parseInt(car.store_id) === parseInt(this.currentUser?.store_id || -1);
+                    const isAuthorized = car.is_authorized || false;
+                    const canSee = (this.currentRole === 'headquarters_admin') || isOwner || isAuthorized;
+                    
+                    // 待出售：本店收车和被授权车源都能预定和出售
+                    const canReserve = canSee && car.car_status === '待出售';
+                    const canSellWhenAvailable = canSee && car.car_status === '待出售';
+                    
+                    // 已预定：本店预定的可以出售，非本店预定不可出售
+                    const isReservedByMe = car.car_status === '已预定' && parseInt(car.reserved_store_id || -1) === parseInt(this.currentUser?.store_id || -2);
+                    const canSellWhenReserved = isReservedByMe;
+                    const canUnreserve = isReservedByMe;
+                    
+                    // 授权：仅本店收车可授权，他店授权过来的无授权功能，待上架状态不可授权
+                    const canAuthorize = (this.currentRole === 'headquarters_admin' || isOwner) && !isAuthorized && car.car_status !== '已售出' && car.car_status !== '待上架';
+                    
+                    if (!canSee || car.car_status === '已售出') return '';
+                    
+                    if (this.currentRole === 'headquarters_admin') {
+                        return `
+                            <div class="detail-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                                ${canAuthorize ? `<button class="btn btn-primary" onclick="App.showAuthorizeModal(${car.id}, ${car.store_id})">授权</button>` : ''}
+                                ${car.car_status === '待上架' ? `<button class="btn btn-warning" style="margin-left: 8px;" onclick="App.publishCar(${car.id})">上架</button>` : ''}
+                                ${canReserve ? `<button class="btn btn-outline" style="margin-left: 8px;" onclick="App.reserveCar(${car.id})">预定</button>` : ''}
+                                ${canSellWhenAvailable ? `<button class="btn btn-success" style="margin-left: 8px;" onclick="App.showSellModal(${car.id}, ${car.store_id || 0})">售卖</button>` : ''}
+                                ${canSellWhenReserved ? `<button class="btn btn-success" style="margin-left: 8px;" onclick="App.showSellModal(${car.id}, ${car.store_id || 0})">售卖</button>` : ''}
+                            </div>
+                        `;
+                    } else if (this.currentRole === 'store_admin') {
+                        return `
+                            <div class="detail-section" style="margin-top: 12px;">
+                                ${car.car_status === '待上架' && isOwner ? `<button class="btn btn-warning" onclick="App.publishCar(${car.id})">上架</button>` : ''}
+                                ${canReserve ? `<button class="btn btn-outline" style="margin-left: 8px;" onclick="App.reserveCar(${car.id})">预定</button>` : ''}
+                                ${canSellWhenAvailable ? `<button class="btn btn-success" style="margin-left: 8px;" onclick="App.showSellModal(${car.id}, ${this.currentUser?.store_id || 0})">售卖</button>` : ''}
+                                ${canUnreserve ? `<button class="btn btn-secondary" style="margin-left: 8px;" onclick="App.unreserveCar(${car.id})">取消预定</button>` : ''}
+                                ${canSellWhenReserved ? `<button class="btn btn-success" style="margin-left: 8px;" onclick="App.showSellModal(${car.id}, ${this.currentUser?.store_id || 0})">售卖</button>` : ''}
+                                ${car.car_status === '已预定' && !isReservedByMe ? `<span class="badge badge-warning" style="margin-left: 8px;">已被他店预定</span>` : ''}
+                            </div>
+                        `;
+                    }
+                    return '';
+                })()}
             </div>
         `);
+        } catch (error) {
+            console.error('showCarDetail error:', error);
+            Toast.error(error?.message || '加载详情失败');
+        }
     },
     
     /**

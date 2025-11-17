@@ -288,7 +288,8 @@ body {
 
 /* 侧边栏 */
 .sidebar {
-    width: 260px;
+    width: 200px;
+    min-width: 200px;
     background: var(--card-bg);
     box-shadow: var(--shadow-md);
     display: flex;
@@ -296,16 +297,17 @@ body {
     border-right: 1px solid var(--border-color);
     position: relative;
     z-index: 10;
+    transition: width 0.3s ease;
 }
 
 .sidebar-header {
-    padding: var(--spacing-lg);
+    padding: 18px 16px;
     border-bottom: 1px solid var(--border-color);
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
 }
 
 .sidebar-header h2 {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
     color: var(--text-inverse);
     margin: 0;
@@ -313,8 +315,8 @@ body {
 }
 
 .sidebar-header h2 i {
-    margin-right: 10px;
-    font-size: 22px;
+    margin-right: 8px;
+    font-size: 20px;
 }
 
 .sidebar-nav {
@@ -334,13 +336,14 @@ body {
 .sidebar-nav a {
     display: flex;
     align-items: center;
-    padding: 14px 16px;
+    padding: 12px 14px;
     color: var(--text-secondary);
     text-decoration: none;
     border-radius: var(--radius);
     transition: all 0.2s ease;
-    margin: 2px 12px;
+    margin: 2px 10px;
     font-weight: 500;
+    font-size: 14px;
     position: relative;
 }
 
@@ -369,8 +372,9 @@ body {
 }
 
 .sidebar-nav a i {
-    margin-right: 12px;
-    width: 20px;
+    margin-right: 10px;
+    width: 18px;
+    font-size: 16px;
 }
 
 .sidebar-footer {
@@ -422,7 +426,7 @@ body {
 }
 
 .top-header h3 {
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 700;
     color: var(--text-primary);
     letter-spacing: -0.3px;
@@ -490,7 +494,7 @@ body {
 
 .content-area {
     flex: 1;
-    padding: var(--spacing-lg);
+    padding: 24px;
     overflow-y: auto;
     background: var(--bg-color);
 }
@@ -498,33 +502,68 @@ body {
 /* 卡片 */
 .card {
     background: var(--card-bg);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
     border: 1px solid var(--border-light);
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
 .card:hover {
-    box-shadow: var(--shadow-md);
-    border-color: var(--border-color);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.card:hover::before {
+    opacity: 1;
 }
 
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border-color);
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 2px solid var(--border-color);
+    position: relative;
+}
+
+.card-header::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary-color), transparent);
+    border-radius: 2px;
 }
 
 .card-title {
     font-size: 20px;
     font-weight: 700;
     color: var(--text-primary);
-    letter-spacing: -0.3px;
+    letter-spacing: -0.4px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 /* 表格 */
@@ -538,32 +577,44 @@ table {
 }
 
 table th {
-    background: var(--bg-secondary);
-    padding: 16px;
+    background: linear-gradient(180deg, var(--bg-secondary) 0%, #f8fafc 100%);
+    padding: 14px 16px;
     text-align: left;
     font-weight: 700;
     color: var(--text-primary);
-    border-bottom: 2px solid var(--border-color);
-    font-size: 13px;
+    border-bottom: 2px solid var(--primary-color);
+    font-size: 12px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.8px;
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 table td {
-    padding: 16px;
+    padding: 14px 16px;
     border-bottom: 1px solid var(--border-light);
     font-size: 14px;
     color: var(--text-primary);
+    transition: all 0.2s ease;
 }
 
 table tr {
-    transition: all 0.15s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
 }
 
 table tr:hover {
-    background: var(--hover-bg);
-    transform: scale(1.001);
+    background: linear-gradient(90deg, var(--primary-bg) 0%, transparent 100%);
+    transform: translateX(2px);
+    box-shadow: inset 3px 0 0 var(--primary-color);
+}
+
+table tr:hover td {
+    color: var(--text-primary);
+    font-weight: 500;
 }
 
 /* 数据表格优化 */
@@ -639,19 +690,24 @@ form .btn-group {
 .filter-bar {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--spacing);
-    padding: var(--spacing-md);
+    gap: 12px;
+    padding: 16px;
     background: var(--bg-secondary);
-    border-radius: var(--radius);
+    border-radius: var(--radius-md);
     margin-bottom: var(--spacing-lg);
     align-items: center;
     border: 1px solid var(--border-light);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .filter-item {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.filter-item.filter-search {
+    margin-left: auto;
 }
 
 .filter-item label {
@@ -678,6 +734,37 @@ form .btn-group {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px var(--primary-bg);
     background: var(--card-bg);
+}
+
+/* 状态多选组（与筛选条风格统一） */
+.checkbox-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 6px 10px;
+}
+.checkbox-group .checkbox-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+}
+.checkbox-group input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+}
+.checkbox-group .checkbox-inline:hover {
+    background: rgba(0,0,0,0.03);
+    color: var(--text-color);
 }
 
 /* 分页组件 */
@@ -819,11 +906,13 @@ form .btn-group {
 .form-group select,
 .form-group textarea {
     width: 100%;
-    padding: 10px 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
+    padding: 12px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius);
     font-size: 14px;
-    transition: all 0.3s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--card-bg);
+    color: var(--text-primary);
 }
 
 .form-group input:focus,
@@ -831,7 +920,14 @@ form .btn-group {
 .form-group textarea:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    box-shadow: 0 0 0 4px var(--primary-bg), 0 2px 8px rgba(37, 99, 235, 0.15);
+    transform: translateY(-1px);
+}
+
+.form-group input:hover,
+.form-group select:hover,
+.form-group textarea:hover {
+    border-color: var(--primary-light);
 }
 
 .form-group textarea {
@@ -850,19 +946,20 @@ form .btn-group {
 }
 
 .btn {
-    padding: 12px 24px;
+    padding: 10px 24px;
     border: none;
-    border-radius: var(--radius);
+    border-radius: var(--radius-md);
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    letter-spacing: 0.2px;
+    gap: 6px;
+    letter-spacing: 0.3px;
     position: relative;
     overflow: hidden;
+    box-shadow: var(--shadow-sm);
 }
 
 .btn::before {
@@ -873,7 +970,7 @@ form .btn-group {
     width: 0;
     height: 0;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.3);
     transform: translate(-50%, -50%);
     transition: width 0.6s, height 0.6s;
 }
@@ -881,6 +978,16 @@ form .btn-group {
 .btn:hover::before {
     width: 300px;
     height: 300px;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
 }
 
 .btn-success {
@@ -912,15 +1019,34 @@ form .btn-group {
     transform: translateY(0);
 }
 
+.btn-sm {
+    padding: 8px 16px;
+    font-size: 13px;
+}
+
+.btn-xs {
+    padding: 4px 10px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
 /* 标签 */
 .badge {
     display: inline-block;
-    padding: 6px 14px;
+    padding: 8px 16px;
     border-radius: 20px;
     font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.2px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
     line-height: 1.2;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.badge:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
 }
 
 .badge-success {
@@ -963,15 +1089,27 @@ form .btn-group {
 
 .modal-content {
     background: var(--card-bg);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
     width: 90%;
-    max-width: 700px;
+    max-width: 800px;
     max-height: 90vh;
     overflow-y: auto;
-    animation: slideUp 0.3s ease-out;
-    box-shadow: var(--shadow-xl);
+    animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-xl), 0 0 0 1px rgba(0, 0, 0, 0.05);
     border: 1px solid var(--border-light);
+    position: relative;
+}
+
+.modal-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
 
 .modal-header {
@@ -1280,4 +1418,115 @@ form .btn-group {
 .skeleton-label { width: 90px; height: 14px; margin-bottom: 8px; }
 .skeleton-input { width: 100%; height: 38px; }
 .skeleton-textarea { width: 100%; height: 100px; }
+
+/* 新手指引样式 */
+.guide-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.guide-steps li {
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--primary-color);
+    transition: all 0.2s ease;
+    line-height: 1.8;
+}
+
+.guide-steps li:hover {
+    background: var(--primary-bg);
+    transform: translateX(4px);
+    box-shadow: var(--shadow-sm);
+}
+
+.guide-steps li strong {
+    color: var(--primary-color);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.guide-steps .btn-sm {
+    font-size: 12px;
+    padding: 6px 16px;
+}
+
+/* 新手指引遮罩动画 */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* 业务流程横向流程图 */
+.process-flow {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 24px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    gap: 16px;
+}
+
+.process-step {
+    flex: 1;
+    min-width: 160px;
+    text-align: center;
+    position: relative;
+}
+
+.process-step-number {
+    width: 48px;
+    height: 48px;
+    line-height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+    color: white;
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 auto 12px;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.process-step-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.process-step-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.process-arrow {
+    font-size: 24px;
+    color: var(--primary-color);
+    font-weight: 700;
+    margin-top: 24px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 1200px) {
+    .process-flow {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .process-arrow {
+        transform: rotate(90deg);
+        margin: 8px 0;
+    }
+    
+    .process-step {
+        width: 100%;
+        max-width: 400px;
+    }
+}
 

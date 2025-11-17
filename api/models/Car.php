@@ -22,7 +22,7 @@ class Car
     public function getList($params = [])
     {
         $page = $params['page'] ?? 1;
-        $limit = $params['limit'] ?? 20;
+        $limit = $params['limit'] ?? 15;
         $offset = ($page - 1) * $limit;
         
         $where = "WHERE 1=1";
@@ -46,10 +46,25 @@ class Car
             $bindParams[] = $params['audit_status'];
         }
         
-        // 车源状态
-        if (isset($params['car_status']) && $params['car_status']) {
+        // 车源状态（支持多选）
+        if (!empty($params['car_statuses']) && is_array($params['car_statuses'])) {
+            $placeholders = implode(',', array_fill(0, count($params['car_statuses']), '?'));
+            $where .= " AND c.car_status IN ($placeholders)";
+            foreach ($params['car_statuses'] as $cs) {
+                $bindParams[] = $cs;
+            }
+        } else if (isset($params['car_status']) && $params['car_status']) {
             $where .= " AND c.car_status = ?";
             $bindParams[] = $params['car_status'];
+        }
+        
+        // 排除状态（用于排除待上架状态）
+        if (!empty($params['exclude_statuses']) && is_array($params['exclude_statuses'])) {
+            $placeholders = implode(',', array_fill(0, count($params['exclude_statuses']), '?'));
+            $where .= " AND c.car_status NOT IN ($placeholders)";
+            foreach ($params['exclude_statuses'] as $es) {
+                $bindParams[] = $es;
+            }
         }
         
         // 品牌筛选
@@ -81,12 +96,35 @@ class Car
             $bindParams[] = $storeId;
         }
         
+        // 排序处理
+        $orderBy = "ORDER BY c.create_time DESC";
+        if (!empty($params['sort_field']) && !empty($params['sort_order'])) {
+            $sortField = $params['sort_field'];
+            $sortOrder = strtoupper($params['sort_order']) === 'DESC' ? 'DESC' : 'ASC';
+            
+            // 字段映射（前端字段名 -> 数据库字段名）
+            $fieldMap = [
+                'plate_number' => 'c.plate_number',
+                'brand' => 'c.brand',
+                'store_name' => 's.store_name',
+                'purchase_price' => 'c.purchase_price',
+                'mileage' => 'c.mileage',
+                'years' => 'c.years',
+                'purchase_time' => 'c.purchase_time',
+                'car_status' => 'c.car_status'
+            ];
+            
+            if (isset($fieldMap[$sortField])) {
+                $orderBy = "ORDER BY {$fieldMap[$sortField]} {$sortOrder}";
+            }
+        }
+        
         $sql = "SELECT c.*, s.store_name, s.store_phone, u.real_name as input_user_name 
                 FROM uc_cars c 
                 LEFT JOIN uc_stores s ON c.store_id = s.id 
                 LEFT JOIN uc_users u ON c.input_user_id = u.id 
                 {$where} 
-                ORDER BY c.create_time DESC 
+                {$orderBy}
                 LIMIT {$limit} OFFSET {$offset}";
         
         $list = $this->db->query($sql, $bindParams);
@@ -103,10 +141,14 @@ class Car
      */
     public function getById($id)
     {
-        $sql = "SELECT c.*, s.store_name, s.store_phone, u.real_name as input_user_name 
+        $sql = "SELECT c.*, s.store_name, s.store_phone, u.real_name as input_user_name,
+                       ssold.store_name AS sold_store_name,
+                       sres.store_name AS reserved_store_name
                 FROM uc_cars c 
                 LEFT JOIN uc_stores s ON c.store_id = s.id 
                 LEFT JOIN uc_users u ON c.input_user_id = u.id 
+                LEFT JOIN uc_stores ssold ON c.sold_store_id = ssold.id
+                LEFT JOIN uc_stores sres ON c.reserved_store_id = sres.id
                 WHERE c.id = ?";
         return $this->db->queryOne($sql, [$id]);
     }
@@ -131,19 +173,18 @@ class Car
         $years = $this->calculateYears($data['first_register_time']);
         
         $sql = "INSERT INTO uc_cars (
-            store_id, input_user_id, brand, series, model, color, first_register_time, years,
+            store_id, input_user_id, brand, series, color, first_register_time, years,
             vin, plate_number, mileage, condition_description, purchase_price, purchase_time,
             car_status, audit_status, displacement, transmission, fuel_type, emission_standard,
-            transfer_count, insurance_status, inspection_status, car_config,
+            transfer_count, insurance_expire_time, inspection_expire_time, car_config,
             accident_record, maintenance_record, remark, create_time, update_time
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         return $this->db->insert($sql, [
             $data['store_id'],
             $data['input_user_id'],
             $data['brand'],
             $data['series'],
-            $data['model'] ?? '',
             $data['color'],
             $data['first_register_time'],
             $years,
@@ -153,7 +194,7 @@ class Car
             $data['condition_description'],
             $data['purchase_price'],
             time(),
-            $data['car_status'] ?? '收钥匙',
+            '待上架',
             '待审核',
             $data['displacement'] ?? '',
             $data['transmission'] ?? '',
@@ -181,7 +222,7 @@ class Car
         $fields = [];
         $values = [];
         
-        $allowedFields = ['brand', 'series', 'model', 'color', 'first_register_time', 'vin', 'plate_number',
+        $allowedFields = ['brand', 'series', 'color', 'first_register_time', 'vin', 'plate_number',
             'mileage', 'condition_description', 'purchase_price', 'car_status', 'displacement', 'transmission',
             'fuel_type', 'emission_standard', 'transfer_count', 'insurance_expire_time', 'inspection_expire_time',
             'car_config', 'accident_record', 'maintenance_record', 'remark'];
@@ -211,24 +252,19 @@ class Car
      */
     public function audit($id, $auditStatus, $auditUserId, $auditRemark = '')
     {
-        $updateData = [
-            'audit_status' => $auditStatus,
-            'audit_user_id' => $auditUserId,
-            'audit_time' => time(),
-            'audit_remark' => $auditRemark
-        ];
+        // 审核通过：状态变为"待出售"，audit_status为"审核通过"
+        // 审核驳回：状态保持"待上架"，audit_status为"审核驳回"
+        $carStatus = ($auditStatus == '审核通过') ? '待出售' : '待上架';
+        $submitHeadquartersTime = ($auditStatus == '审核通过') ? time() : 0;
         
-        if ($auditStatus == '审核通过') {
-            $updateData['submit_headquarters_time'] = time();
-        }
-        
-        $sql = "UPDATE uc_cars SET audit_status = ?, audit_user_id = ?, audit_time = ?, audit_remark = ?, submit_headquarters_time = ?, update_time = ? WHERE id = ?";
+        $sql = "UPDATE uc_cars SET car_status = ?, audit_status = ?, audit_user_id = ?, audit_time = ?, audit_remark = ?, submit_headquarters_time = ?, update_time = ? WHERE id = ?";
         return $this->db->execute($sql, [
-            $updateData['audit_status'],
-            $updateData['audit_user_id'],
-            $updateData['audit_time'],
-            $updateData['audit_remark'],
-            $updateData['submit_headquarters_time'] ?? 0,
+            $carStatus,
+            $auditStatus,
+            $auditUserId,
+            time(),
+            $auditRemark,
+            $submitHeadquartersTime,
             time(),
             $id
         ]);
@@ -241,7 +277,26 @@ class Car
     {
         $now = time();
         $sql = "UPDATE uc_cars SET car_status = '已售出', sold_store_id = ?, sold_time = ?, update_time = ? WHERE id = ?";
-        return $this->db->execute($sql, [$soldStoreId, $now, $id]);
+        return $this->db->execute($sql, [$soldStoreId, $now, time(), $id]);
+    }
+    
+    /**
+     * 预定车源（锁定）
+     */
+    public function reserve($id, $storeId)
+    {
+        $now = time();
+        $sql = "UPDATE uc_cars SET car_status = '已预定', reserved_store_id = ?, reserved_time = ?, update_time = ? WHERE id = ?";
+        return $this->db->execute($sql, [$storeId, $now, time(), $id]);
+    }
+    
+    /**
+     * 取消预定（解锁）
+     */
+    public function unreserve($id)
+    {
+        $sql = "UPDATE uc_cars SET car_status = '待出售', reserved_store_id = 0, reserved_time = 0, update_time = ? WHERE id = ?";
+        return $this->db->execute($sql, [time(), $id]);
     }
     
     /**

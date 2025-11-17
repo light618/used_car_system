@@ -91,6 +91,9 @@ $routes = [
     '/car/authorize' => ['CarController', 'authorize'],
     '/car/revoke' => ['CarController', 'revoke'],
     '/car/sell' => ['CarController', 'sell'],
+    '/car/reserve' => ['CarController', 'reserve'],
+    '/car/unreserve' => ['CarController', 'unreserve'],
+    '/car/publish' => ['CarController', 'publish'],
     
     // 文件上传
     '/upload/image' => ['UploadController', 'image'],
